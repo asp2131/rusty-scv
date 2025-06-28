@@ -87,7 +87,7 @@ impl Screen for MainMenuScreen {
         Box::pin(async move { Ok(()) })
     }
 
-    fn render(&mut self, frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, _state: &AppState, _animation_state: &AnimationState, _theme: &Theme) {
+    fn render(&mut self, frame: &mut Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, _state: &AppState, _animation_state: &AnimationState, _theme: &Theme) {
         // Center the menu
         let menu_area = crate::ui::layout::center_rect(60, 80, area);
         frame.render_widget(&mut self.menu, menu_area);

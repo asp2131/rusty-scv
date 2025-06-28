@@ -1,7 +1,18 @@
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{Frame, layout::Rect};
-use std::time::Duration;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::{
+    Frame, 
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph},
+    backend::Backend,
+};
+use std::{
+    future::Future,
+    pin::Pin,
+    time::Duration,
+};
 
 use crate::{
     app::{AppEvent, AppState},
@@ -19,6 +30,7 @@ pub struct ClassSelectionScreen {
     menu: AnimatedMenu,
     loading: bool,
     needs_refresh: bool,
+    error: Option<String>,
 }
 
 impl ClassSelectionScreen {
@@ -31,16 +43,24 @@ impl ClassSelectionScreen {
                 .build(),
             loading: true,
             needs_refresh: true,
+            error: None,
         }
     }
     
     async fn refresh_classes(&mut self, state: &AppState) -> Result<()> {
         self.loading = true;
-        self.classes = state.database.get_classes().await?;
-        self.menu = Self::build_class_menu(&self.classes);
-        self.menu.trigger_entrance();
+        match state.database.get_classes().await {
+            Ok(classes) => {
+                self.classes = classes;
+                self.menu = Self::build_class_menu(&self.classes);
+                self.menu.trigger_entrance();
+                self.error = None;
+            }
+            Err(e) => {
+                self.error = Some(format!("Failed to load classes: {}", e));
+            }
+        }
         self.loading = false;
-        self.needs_refresh = false;
         Ok(())
     }
     
@@ -80,73 +100,148 @@ impl Screen for ClassSelectionScreen {
         ScreenType::ClassSelection
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent, _state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + '_>> {
-        let result =
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') => {
-                self.menu.select_previous();
-                Ok(None)
-            },
-            KeyCode::Down | KeyCode::Char('j') => {
-                self.menu.select_next();
-                Ok(None)
-            },
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                if let Some(item) = self.menu.selected_item() {
-                    match item.title.as_str() {
-                        "Create New Class" | "Create your first class" => {
-                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass)))
-                        },
-                        "Back" => {
-                            Ok(Some(AppEvent::GoBack))
-                        },
-                        title if !self.classes.is_empty() => {
-                            // Find the selected class
-                            if let Some(class) = self.classes.iter().find(|c| c.name == title) {
-                                Ok(Some(AppEvent::SelectClass(class.clone())))
-                            } else {
-                                Ok(None)
-                            }
-                        },
-                        _ => Ok(None),
-                    }
-                } else {
-                    Ok(None)
-                }
-            },
-            KeyCode::Char('c') => {
-                Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass)))
-            },
-            KeyCode::Char('r') => {
-                // Refresh classes
-                self.needs_refresh = true;
-                Ok(None)
-            },
-            _ => Ok(None),
-        };
-        Box::pin(async move { result })
-    }
-
-    fn update(&mut self, delta_time: Duration, state: &mut AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
-        let needs_refresh = self.needs_refresh;
-        if needs_refresh {
-            self.needs_refresh = false; // Reset flag
-            // TODO: Implement async refresh
+    fn handle_key_event<'a>(
+        &'a mut self,
+        key: KeyEvent,
+        _state: &'a AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>> {
+        if let KeyCode::Char('q') | KeyCode::Esc = key.code {
+            return Box::pin(async { Ok(Some(AppEvent::Quit)) });
         }
         
-        self.menu.update(delta_time, &AnimationState::new());
-        Box::pin(async move { Ok(()) })
+        if let KeyCode::Char('n') = key.code {
+            return Box::pin(async { Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))) });
+        }
+        
+        if let KeyCode::Char('r') = key.code {
+            self.needs_refresh = true;
+            return Box::pin(async { Ok(None) });
+        }
+        
+        match key.code {
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.menu.select_next();
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.menu.select_previous();
+            }
+            KeyCode::Enter => {
+                if let Some(selected_item) = self.menu.selected_item() {
+                    if selected_item.title == "Create New Class" {
+                        return Box::pin(async { Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))) });
+                    } else if selected_item.title == "Back" {
+                        return Box::pin(async { Ok(Some(AppEvent::GoBack)) });
+                    } else if let Some(class) = self.classes.iter().find(|c| c.name == selected_item.title) {
+                        return Box::pin(async { Ok(Some(AppEvent::SelectClass(class.clone()))) });
+                    }
+                }
+            }
+            _ => {}
+        }
+        
+        Box::pin(async { Ok(None) })
     }
 
-    fn render(&mut self, frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, _state: &AppState, _animation_state: &AnimationState, theme: &Theme) {
+    fn update<'a>(
+        &'a mut self,
+        delta_time: Duration,
+        state: &'a mut AppState,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+        // Update menu animation
+        let animation_state = AnimationState::default();
+        self.menu.update(delta_time, &animation_state);
+        
+        // Handle refresh if needed
+        if self.needs_refresh && !self.loading {
+            self.needs_refresh = false;
+            // Note: In a real implementation, we'd schedule the refresh for the next frame
+            // For now, just mark that refresh is needed
+        }
+        
+        Box::pin(async { Ok(()) })
+    }
+
+    fn render(
+        &mut self,
+        frame: &mut Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
+        area: Rect,
+        _state: &AppState,
+        _animation_state: &AnimationState,
+        theme: &Theme,
+    ) {
+        // Create a centered area for the content
+        let popup_area = crate::ui::layout::center_rect(60, 80, area);
+        
+        // Create a block for the content
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title("Select a Class")
+            .title_alignment(Alignment::Center)
+            .style(Style::default().bg(theme.background).fg(theme.text));
+            
+        frame.render_widget(block, popup_area);
+        
+        // Create inner area for content
+        let inner_area = popup_area.inner(&crate::ui::layout::margin(1, 1));
+        
         if self.loading {
             // Render loading state
             let loading_widget = crate::ui::components::loading::LoadingPresets::initializing(theme);
-            frame.render_widget(loading_widget, area);
+            frame.render_widget(loading_widget, inner_area);
+        } else if let Some(error) = &self.error {
+            // Render error message
+            let error_text = Line::from(Span::styled(
+                error,
+                Style::default().fg(theme.error),
+            ));
+            frame.render_widget(
+                Paragraph::new(error_text)
+                    .alignment(Alignment::Center),
+                inner_area,
+            );
         } else {
-            // Center the menu
-            let menu_area = crate::ui::layout::center_rect(60, 80, area);
-            frame.render_widget(&mut self.menu, menu_area);
+            // Render the menu
+            let menu_area = inner_area;
+            
+            // Render menu title
+            let title = Paragraph::new("Available Classes")
+                .alignment(Alignment::Center)
+                .style(Style::default().add_modifier(Modifier::BOLD));
+                
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(3), // Title
+                    Constraint::Min(3),    // Menu
+                    Constraint::Length(1), // Help text
+                ])
+                .split(menu_area);
+                
+            frame.render_widget(title, chunks[0]);
+            
+            // Render the menu
+            frame.render_widget(&mut self.menu, chunks[1]);
+            
+            // Render help text
+            let help_text = Line::from(vec![
+                Span::styled("↑/↓", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(": Navigate  "),
+                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(": Select  "),
+                Span::styled("n", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(": New Class  "),
+                Span::styled("r", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(": Refresh  "),
+                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(": Quit"),
+            ]);
+            
+            frame.render_widget(
+                Paragraph::new(help_text)
+                    .alignment(Alignment::Center)
+                    .style(Style::default().fg(theme.text_secondary)),
+                chunks[2],
+            );
         }
     }
 }

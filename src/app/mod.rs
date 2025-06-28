@@ -3,26 +3,19 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols,
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Gauge, Paragraph, Wrap},
-    Frame, Terminal,
+    style::{Modifier, Style},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    Terminal,
 };
 use std::{
     io,
     time::{Duration, Instant},
 };
-use tokio::time::{interval, timeout};
+use tokio::time::interval;
 
-use crate::data::models::{Class, Student};
 use crate::ui::{
     animations::AnimationState,
-    components::{
-        dashboard::Dashboard,
-        loading::LoadingWidget,
-        menu::AnimatedMenu,
-    },
+    components::loading::LoadingWidget,
     layout::ResponsiveLayout,
     screens::{Screen, ScreenType},
     themes::{Theme, THEMES},
@@ -266,51 +259,55 @@ impl App {
     }
 
     fn render(&mut self) -> Result<()> {
+        let area_size = self.terminal.size()?;
+        self.layout.update_size(area_size.width, area_size.height);
+        
+        let state = &self.state;
+        let animation_state = &self.animation_state;
+        let theme = self.theme;
+        
         self.terminal.draw(|frame| {
             let area = frame.size();
             
-            // Update layout for current terminal size
-            self.layout.update_size(area.width, area.height);
-            
             // Render current screen
-            self.current_screen.render(frame, area, &self.state, &self.animation_state, self.theme);
+            self.current_screen.render(frame, area, state, animation_state, theme);
             
             // Render global overlays (loading, errors, etc.)
-            self.render_overlays(frame, area);
+            Self::render_overlays_static(frame, area, state, animation_state, theme);
         })?;
         
         Ok(())
     }
 
-    fn render_overlays(&self, frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect) {
+    fn render_overlays_static(frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, state: &AppState, animation_state: &AnimationState, theme: &Theme) {
         // Render loading overlay
-        if self.state.is_loading() {
-            let loading_area = centered_rect(40, 20, area);
+        if state.is_loading() {
+            let loading_area = crate::ui::layout::center_rect(40, 20, area);
             frame.render_widget(Clear, loading_area); // Clear background
             
             let loading_widget = LoadingWidget::new(
-                self.state.loading_message().unwrap_or("Loading..."),
-                &self.animation_state,
-                self.theme,
+                state.loading_message().unwrap_or("Loading..."),
+                animation_state,
+                theme,
             );
             frame.render_widget(loading_widget, loading_area);
         }
 
         // Render error overlay
-        if let Some(error) = self.state.error() {
-            let error_area = centered_rect(60, 30, area);
+        if let Some(error) = state.error() {
+            let error_area = crate::ui::layout::center_rect(60, 30, area);
             frame.render_widget(Clear, error_area);
             
             let error_block = Block::default()
                 .title("Error")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(self.theme.error))
-                .title_style(Style::default().fg(self.theme.error).add_modifier(Modifier::BOLD));
+                .border_style(Style::default().fg(theme.error))
+                .title_style(Style::default().fg(theme.error).add_modifier(Modifier::BOLD));
             
             let error_text = Paragraph::new(error)
                 .block(error_block)
                 .wrap(Wrap { trim: true })
-                .style(Style::default().fg(self.theme.text));
+                .style(Style::default().fg(theme.text));
             
             frame.render_widget(error_text, error_area);
         }

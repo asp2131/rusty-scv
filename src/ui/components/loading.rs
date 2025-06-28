@@ -32,11 +32,11 @@ pub struct LoadingWidget {
     pulse_animation: f32,
     matrix_chars: Vec<char>,
     show_percentage: bool,
-    theme: &'static Theme,
+    theme: Theme,
 }
 
 impl LoadingWidget {
-    pub fn new(message: &str, animation_state: &AnimationState, theme: &'static Theme) -> Self {
+    pub fn new(message: &str, animation_state: &AnimationState, theme: &Theme) -> Self {
         Self {
             message: message.to_string(),
             loading_type: LoadingType::Spinner,
@@ -47,7 +47,7 @@ impl LoadingWidget {
                 .chars()
                 .collect(),
             show_percentage: false,
-            theme,
+            theme: theme.clone(),
         }
     }
 
@@ -92,7 +92,7 @@ impl LoadingWidget {
     }
 }
 
-impl Widget for &mut LoadingWidget {
+impl Widget for LoadingWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Create the loading container
         let block = Block::default()
@@ -114,11 +114,14 @@ impl Widget for &mut LoadingWidget {
             ])
             .split(inner_area);
 
+        // Create a mutable copy of self for rendering
+        let mut this = self;
+        
         // Render the animation
-        self.render_animation(chunks[0], buf);
+        this.render_animation(chunks[0], buf);
 
         // Render the message
-        self.render_message(chunks[1], buf);
+        this.render_message(chunks[1], buf);
     }
 }
 
@@ -368,7 +371,7 @@ impl LoadingWidget {
         paragraph.render(area, buf);
     }
 
-    fn render_message(&self, area: Rect, buf: &mut Buffer) {
+    fn render_message(&mut self, area: Rect, buf: &mut Buffer) {
         let message_style = Style::default().fg(self.theme.text);
         let paragraph = Paragraph::new(self.message.as_str())
             .style(message_style)
@@ -396,17 +399,17 @@ fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
 pub struct LoadingPresets;
 
 impl LoadingPresets {
-    pub fn cloning_repos(theme: &'static Theme) -> LoadingWidget {
+    pub fn cloning_repos(theme: &Theme) -> LoadingWidget {
         LoadingWidget::new("Cloning repositories...", &Default::default(), theme)
             .with_spinner()
     }
 
-    pub fn fetching_github_data(theme: &'static Theme) -> LoadingWidget {
+    pub fn fetching_github_data(theme: &Theme) -> LoadingWidget {
         LoadingWidget::new("Fetching GitHub data...", &Default::default(), theme)
             .with_dots()
     }
 
-    pub fn processing_students(current: f32, total: f32, theme: &'static Theme) -> LoadingWidget {
+    pub fn processing_students(current: f32, total: f32, theme: &Theme) -> LoadingWidget {
         LoadingWidget::new(
             &format!("Processing students ({}/{})", current as u32, total as u32),
             &Default::default(),
@@ -415,12 +418,12 @@ impl LoadingPresets {
         .with_progress(current, total)
     }
 
-    pub fn initializing(theme: &'static Theme) -> LoadingWidget {
+    pub fn initializing(theme: &Theme) -> LoadingWidget {
         LoadingWidget::new("Initializing...", &Default::default(), theme)
             .with_pulse()
     }
 
-    pub fn hacker_mode(theme: &'static Theme) -> LoadingWidget {
+    pub fn hacker_mode(theme: &Theme) -> LoadingWidget {
         LoadingWidget::new("Accessing the mainframe...", &Default::default(), theme)
             .with_matrix()
     }

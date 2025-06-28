@@ -47,6 +47,18 @@ impl AnimatedInput {
         &self.value
     }
     
+    pub fn get_text(&self) -> &str {
+        &self.value
+    }
+    
+    pub fn is_focused(&self) -> bool {
+        self.focused
+    }
+    
+    pub fn cursor_position(&self) -> usize {
+        self.cursor_position
+    }
+    
     pub fn set_value(&mut self, value: String) {
         self.value = value;
         self.cursor_position = self.value.len();
@@ -96,7 +108,7 @@ impl AnimatedInput {
     }
 }
 
-impl Widget for &mut AnimatedInput {
+impl Widget for &AnimatedInput {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let theme = &crate::ui::themes::THEMES.neon_night; // TODO: Get from context
         

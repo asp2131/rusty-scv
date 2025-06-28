@@ -34,9 +34,9 @@ pub enum ScreenType {
 pub trait Screen {
     fn screen_type(&self) -> ScreenType;
     
-    fn handle_key_event(&mut self, key: KeyEvent, state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + '_>>;
+    fn handle_key_event<'a>(&'a mut self, key: KeyEvent, state: &'a AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>>;
     
-    fn update(&mut self, delta_time: Duration, state: &mut AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>;
+    fn update<'a>(&'a mut self, delta_time: Duration, state: &'a mut AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
     
     fn render(&mut self, frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, state: &AppState, animation_state: &AnimationState, theme: &Theme);
 }

@@ -47,3 +47,8 @@ pub fn center_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         ])
         .split(popup_layout[1])[1]
 }
+
+/// Create a margin around a rect
+pub fn margin(horizontal: u16, vertical: u16) -> ratatui::layout::Margin {
+    ratatui::layout::Margin { horizontal, vertical }
+}
