@@ -3,7 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame, 
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
 };
@@ -128,7 +128,7 @@ impl Screen for CreateClassScreen {
         // Render title
         let title = Paragraph::new("Create New Class")
             .alignment(Alignment::Center)
-            .style(Style::default().add_modifier(Modifier::BOLD));
+            .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD));
         frame.render_widget(title, chunks[0]);
         
         // Render input field
@@ -140,13 +140,13 @@ impl Screen for CreateClassScreen {
                 
         let input_text = if self.input.get_text().is_empty() {
             Line::from(Span::styled(
-                "Enter class name",
+                "Enter class name (e.g., 'CS101 Fall 2024')",
                 Style::default().fg(theme.text_secondary),
             ))
         } else {
             Line::from(Span::styled(
                 self.input.get_text(),
-                Style::default().fg(theme.text),
+                Style::default().fg(Color::White),
             ))
         };
         
@@ -179,16 +179,15 @@ impl Screen for CreateClassScreen {
         
         // Render help text
         let help_text = Line::from(vec![
-            Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(": Create Class  "),
-            Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(": Back"),
+            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(": Create Class  ", Style::default().fg(Color::White)),
+            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(": Return to Main Menu", Style::default().fg(Color::White)),
         ]);
         
         frame.render_widget(
             Paragraph::new(help_text)
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(theme.text_secondary)),
+                .alignment(Alignment::Center),
             chunks[3],
         );
 
