@@ -137,18 +137,36 @@ impl Widget for &AnimatedInput {
         let text_style = if self.value.is_empty() && !self.placeholder.is_empty() {
             theme.secondary_text()
         } else {
-            Style::default().fg(theme.text)
+            Style::default().fg(Color::White)
         };
         
         // Add cursor if focused
-        let line = if self.focused && self.cursor_blink.sin() > 0.0 {
-            let cursor_char = if self.cursor_position >= self.value.len() { "█" } else { "|" };
-            let (before, after) = self.value.split_at(self.cursor_position);
-            Line::from(vec![
-                Span::styled(before, text_style),
-                Span::styled(cursor_char, theme.primary_text()),
-                Span::styled(after, text_style),
-            ])
+        let line = if self.focused {
+            let cursor_visible = self.cursor_blink.sin() > 0.0;
+            let white_style = Style::default().fg(Color::White);
+            if self.cursor_position >= self.value.len() {
+                // Cursor at end
+                if cursor_visible {
+                    Line::from(vec![
+                        Span::styled(&self.value, white_style),
+                        Span::styled("█", Style::default().fg(Color::Cyan)),
+                    ])
+                } else {
+                    Line::from(Span::styled(&self.value, white_style))
+                }
+            } else {
+                // Cursor in middle
+                let (before, after) = self.value.split_at(self.cursor_position);
+                if cursor_visible {
+                    Line::from(vec![
+                        Span::styled(before, white_style),
+                        Span::styled("|", Style::default().fg(Color::Cyan)),
+                        Span::styled(after, white_style),
+                    ])
+                } else {
+                    Line::from(Span::styled(&self.value, white_style))
+                }
+            }
         } else {
             Line::from(Span::styled(display_text, text_style))
         };

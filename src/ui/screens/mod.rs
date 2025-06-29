@@ -39,6 +39,8 @@ pub trait Screen {
     fn update<'a>(&'a mut self, delta_time: Duration, state: &'a mut AppState) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
     
     fn render(&mut self, frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, area: Rect, state: &AppState, animation_state: &AnimationState, theme: &Theme);
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 // Simplified version without context for now

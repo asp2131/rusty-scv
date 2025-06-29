@@ -256,6 +256,10 @@ impl Screen for MainMenuScreen {
         Box::pin(async { Ok(()) })
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn render(
         &mut self,
         frame: &mut Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>,

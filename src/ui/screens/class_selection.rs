@@ -47,6 +47,25 @@ impl ClassSelectionScreen {
         }
     }
     
+    pub fn needs_refresh(&self) -> bool {
+        self.needs_refresh
+    }
+    
+    pub fn set_classes(&mut self, classes: Vec<Class>) {
+        self.classes = classes;
+        self.menu = Self::build_class_menu(&self.classes);
+        self.menu.trigger_entrance();
+        self.loading = false;
+        self.needs_refresh = false;
+        self.error = None;
+    }
+    
+    pub fn set_error(&mut self, error: String) {
+        self.error = Some(error);
+        self.loading = false;
+        self.needs_refresh = false;
+    }
+    
     async fn refresh_classes(&mut self, state: &AppState) -> Result<()> {
         self.loading = true;
         match state.database.get_classes().await {
@@ -114,8 +133,7 @@ impl Screen for ClassSelectionScreen {
         }
         
         if let KeyCode::Char('r') = key.code {
-            self.needs_refresh = true;
-            return Box::pin(async { Ok(None) });
+            return Box::pin(async { Ok(Some(AppEvent::RefreshData)) });
         }
         
         match key.code {
@@ -145,20 +163,20 @@ impl Screen for ClassSelectionScreen {
     fn update<'a>(
         &'a mut self,
         delta_time: Duration,
-        state: &'a mut AppState,
+        _state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         // Update menu animation
         let animation_state = AnimationState::default();
         self.menu.update(delta_time, &animation_state);
         
-        // Handle refresh if needed
-        if self.needs_refresh && !self.loading {
-            self.needs_refresh = false;
-            // Note: In a real implementation, we'd schedule the refresh for the next frame
-            // For now, just mark that refresh is needed
-        }
+        // Note: We'll handle refresh through app events instead of direct database calls
+        // since the Screen trait requires Send futures but AppState is not Sync
         
         Box::pin(async { Ok(()) })
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn render(

@@ -54,30 +54,31 @@ impl Screen for CreateClassScreen {
         key: KeyEvent, 
         _state: &'a AppState,
     ) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>> {
-        if let KeyCode::Esc = key.code {
-            return Box::pin(async { Ok(Some(AppEvent::GoBack)) });
+        if self.creating {
+            return Box::pin(async { Ok(None) });
         }
 
-        // Always handle input events to allow typing
-        self.input.handle_key_event(key);
-        
-        if let KeyCode::Enter = key.code {
-            let class_name = self.input.get_text().to_string();
-            if class_name.is_empty() {
-                self.error = Some("Class name cannot be empty".to_string());
-            } else {
-                // Create a new Class with the provided name
-                let class = Class {
-                    id: 0, // Will be set by the database
-                    name: class_name,
-                    created_at: chrono::Utc::now(),
-                };
-                self.error = None; // Clear any previous errors
-                return Box::pin(async { Ok(Some(AppEvent::ClassCreated(class))) });
+        match key.code {
+            KeyCode::Esc => {
+                return Box::pin(async { Ok(Some(AppEvent::GoBack)) });
             }
-        } else {
-            // Clear error on new input
-            self.error = None;
+            KeyCode::Enter => {
+                let class_name = self.input.value().trim().to_string();
+                if class_name.is_empty() {
+                    self.error = Some("Class name cannot be empty".to_string());
+                } else {
+                    self.creating = true;
+                    self.error = None;
+                    return Box::pin(async move { 
+                        Ok(Some(AppEvent::ShowLoading(format!("Creating class '{}'...", class_name))))
+                    });
+                }
+            }
+            _ => {
+                // Handle input for typing
+                self.input.handle_key_event(key);
+                self.error = None; // Clear error on new input
+            }
         }
         
         Box::pin(async { Ok(None) })
@@ -85,10 +86,15 @@ impl Screen for CreateClassScreen {
 
     fn update<'a>(
         &'a mut self,
-        _delta_time: Duration,
+        delta_time: Duration,
         _state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+        self.input.update(delta_time);
         Box::pin(async { Ok(()) })
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn render(
@@ -102,10 +108,13 @@ impl Screen for CreateClassScreen {
         // Create a centered area for the content
         let popup_area = crate::ui::layout::center_rect(60, 30, area);
         
+        // Clear the area first
+        frame.render_widget(Clear, popup_area);
+        
         // Create a block for the content
         let block = Block::default()
             .borders(Borders::ALL)
-            .title("Create New Class")
+            .title("📚 Create New Class")
             .title_alignment(Alignment::Center)
             .style(Style::default().bg(theme.background).fg(theme.text));
             
@@ -118,53 +127,22 @@ impl Screen for CreateClassScreen {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Title
+                Constraint::Length(2), // Title
                 Constraint::Length(3), // Input field
-                Constraint::Min(1),    // Error message
-                Constraint::Length(1), // Help text
+                Constraint::Length(2), // Error message
+                Constraint::Min(1),    // Spacing
+                Constraint::Length(2), // Help text
             ])
             .split(inner_area);
         
         // Render title
-        let title = Paragraph::new("Create New Class")
+        let title = Paragraph::new("Enter a name for your new class")
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD));
+            .style(Style::default().fg(theme.text));
         frame.render_widget(title, chunks[0]);
         
-        // Render input field
-        let input_block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default()
-                .bg(theme.background)
-                .fg(theme.text));
-                
-        let input_text = if self.input.get_text().is_empty() {
-            Line::from(Span::styled(
-                "Enter class name (e.g., 'CS101 Fall 2024')",
-                Style::default().fg(theme.text_secondary),
-            ))
-        } else {
-            Line::from(Span::styled(
-                self.input.get_text(),
-                Style::default().fg(Color::White),
-            ))
-        };
-        
-        frame.render_widget(
-            Paragraph::new(input_text)
-                .block(input_block)
-                .alignment(Alignment::Left),
-            chunks[1],
-        );
-        
-        // Render cursor if focused
-        if self.input.is_focused() {
-            let cursor_x = self.input.cursor_position() as u16 + 1; // +1 for border
-            frame.set_cursor(
-                popup_area.x + cursor_x + 1, // +1 for left border
-                popup_area.y + 2, // +2 for title and top border
-            );
-        }
+        // Render the input component
+        frame.render_widget(&self.input, chunks[1]);
         
         // Render error message if any
         if let Some(error) = &self.error {
@@ -178,17 +156,24 @@ impl Screen for CreateClassScreen {
         }
         
         // Render help text
-        let help_text = Line::from(vec![
-            Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(": Create Class  ", Style::default().fg(Color::White)),
-            Span::styled("Esc", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::styled(": Return to Main Menu", Style::default().fg(Color::White)),
-        ]);
+        let help_text = if self.creating {
+            Line::from(Span::styled(
+                "Creating class...",
+                Style::default().fg(theme.text_secondary).add_modifier(Modifier::ITALIC),
+            ))
+        } else {
+            Line::from(vec![
+                Span::styled("Enter", Style::default().fg(theme.success).add_modifier(Modifier::BOLD)),
+                Span::styled(": Create  ", Style::default().fg(theme.text_secondary)),
+                Span::styled("Esc", Style::default().fg(theme.warning).add_modifier(Modifier::BOLD)),
+                Span::styled(": Cancel", Style::default().fg(theme.text_secondary)),
+            ])
+        };
         
         frame.render_widget(
             Paragraph::new(help_text)
                 .alignment(Alignment::Center),
-            chunks[3],
+            chunks[4],
         );
 
         // Loading overlay

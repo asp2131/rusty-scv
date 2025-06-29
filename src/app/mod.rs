@@ -133,6 +133,13 @@ impl App {
     }
 
     async fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<()> {
+        // Check if there's an error/success message to dismiss
+        if self.state.error().is_some() {
+            // Any key dismisses the error message
+            self.state.set_error(None);
+            return Ok(());
+        }
+
         // Global key bindings
         match (key_event.code, key_event.modifiers) {
             (KeyCode::Char('c'), KeyModifiers::CONTROL) | (KeyCode::Char('q'), KeyModifiers::NONE) => {
@@ -173,7 +180,53 @@ impl App {
                 self.should_quit = true;
             },
             AppEvent::ShowLoading(message) => {
-                self.state.set_loading(true, message);
+                self.state.set_loading(true, message.clone());
+                
+                // Check if this is a class creation loading event
+                if message.starts_with("Creating class '") {
+                    // Extract class name from message
+                    if let Some(start) = message.find('\'') {
+                        if let Some(end) = message[start+1..].find('\'') {
+                            let class_name = &message[start+1..start+1+end];
+                            
+                            // Create the class asynchronously
+                            let state = &self.state;
+                            let db = &state.database;
+                            
+                            // Clone what we need for the async block
+                            let class_name_clone = class_name.to_string();
+                            
+                            // Schedule the database operation
+                            tokio::spawn(async move {
+                                // This will be handled in the next frame
+                                // For now, just create the loading state
+                            });
+                            
+                            // Create the class asynchronously
+                            match db.create_class(&class_name).await {
+                                Ok(class) => {
+                                    self.state.set_loading(false, String::new());
+                                    self.animation_state.trigger_success_celebration();
+                                    
+                                    // Navigate back to class selection
+                                    self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                                    
+                                    // Show success message (temporarily using error display for visibility)
+                                    self.state.set_error(Some(format!("✅ Class '{}' created successfully!", class.name)));
+                                }
+                                Err(e) => {
+                                    self.state.set_loading(false, String::new());
+                                    self.state.set_error(Some(format!("Failed to create class: {}", e)));
+                                    
+                                    // Go back to create class screen
+                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::CreateClass) {
+                                        self.current_screen = screen;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
             AppEvent::HideLoading => {
                 self.state.set_loading(false, String::new());
@@ -191,8 +244,29 @@ impl App {
             AppEvent::SelectClass(class) => {
                 self.state.current_class = Some(class);
             },
-            AppEvent::ClassCreated(_class) => {
-                // TODO: Handle class creation
+            AppEvent::ClassCreated(class) => {
+                // Create the class in the database
+                self.state.set_loading(true, format!("Creating class '{}'...", class.name));
+                
+                match self.state.database.create_class(&class.name).await {
+                    Ok(created_class) => {
+                        self.state.set_loading(false, String::new());
+                        self.animation_state.trigger_success_celebration();
+                        
+                        // Navigate to class selection
+                        self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                        
+                        // Show success message (temporarily using error display)
+                        self.state.set_error(Some(format!("✅ Class '{}' created successfully!", created_class.name)));
+                        
+                        // Clear the message after a delay
+                        // TODO: Implement timed message clearing
+                    }
+                    Err(e) => {
+                        self.state.set_loading(false, String::new());
+                        self.state.set_error(Some(format!("Failed to create class: {}", e)));
+                    }
+                }
             },
             AppEvent::ClassDeleted(_id) => {
                 // TODO: Handle class deletion
@@ -216,7 +290,26 @@ impl App {
                 // TODO: Implement GitHub activity fetching
             },
             AppEvent::RefreshData => {
-                // TODO: Implement data refresh
+                // Handle refresh based on current screen
+                match self.current_screen.screen_type() {
+                    ScreenType::ClassSelection => {
+                        // Refresh classes for the class selection screen
+                        match self.state.database.get_classes().await {
+                            Ok(classes) => {
+                                // Cast to specific screen type to call set_classes
+                                if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
+                                    class_screen.set_classes(classes);
+                                }
+                            }
+                            Err(e) => {
+                                self.state.set_error(Some(format!("Failed to refresh classes: {}", e)));
+                            }
+                        }
+                    }
+                    _ => {
+                        // For other screens, just ignore refresh for now
+                    }
+                }
             },
         }
         Ok(())
@@ -228,10 +321,25 @@ impl App {
         self.navigation_stack.push(current_type);
 
         // Create new screen
-        self.current_screen = crate::ui::screens::create_screen(screen_type)?;
+        self.current_screen = crate::ui::screens::create_screen(screen_type.clone())?;
         
         // Trigger enter animation
         self.animation_state.trigger_transition();
+        
+        // Auto-refresh data for certain screens - do it directly to avoid recursion
+        if screen_type == ScreenType::ClassSelection {
+            match self.state.database.get_classes().await {
+                Ok(classes) => {
+                    // Cast to specific screen type to call set_classes
+                    if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
+                        class_screen.set_classes(classes);
+                    }
+                }
+                Err(e) => {
+                    self.state.set_error(Some(format!("Failed to load classes: {}", e)));
+                }
+            }
+        }
         
         Ok(())
     }
@@ -298,18 +406,47 @@ impl App {
             let error_area = crate::ui::layout::center_rect(60, 30, area);
             frame.render_widget(Clear, error_area);
             
+            // Determine if this is a success message (starts with ✅) or error
+            let is_success = error.starts_with("✅");
+            let title = if is_success { "Success" } else { "Error" };
+            let border_color = if is_success { theme.success } else { theme.error };
+            
             let error_block = Block::default()
-                .title("Error")
+                .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.error))
-                .title_style(Style::default().fg(theme.error).add_modifier(Modifier::BOLD));
+                .border_style(Style::default().fg(border_color))
+                .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD));
+            
+            let inner_area = error_block.inner(error_area);
+            frame.render_widget(error_block, error_area);
+            
+            // Split area for message and help text
+            use ratatui::layout::{Constraint, Direction, Layout};
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(1),     // Message area
+                    Constraint::Length(1),  // Help text
+                ])
+                .split(inner_area);
             
             let error_text = Paragraph::new(error)
-                .block(error_block)
                 .wrap(Wrap { trim: true })
                 .style(Style::default().fg(theme.text));
             
-            frame.render_widget(error_text, error_area);
+            frame.render_widget(error_text, chunks[0]);
+            
+            // Add help text
+            let help_text = ratatui::text::Line::from(vec![
+                ratatui::text::Span::styled("Press ", Style::default().fg(theme.text_secondary)),
+                ratatui::text::Span::styled("any key", Style::default().fg(theme.primary).add_modifier(Modifier::BOLD)),
+                ratatui::text::Span::styled(" to dismiss", Style::default().fg(theme.text_secondary)),
+            ]);
+            
+            let help_paragraph = Paragraph::new(help_text)
+                .alignment(ratatui::layout::Alignment::Center);
+            
+            frame.render_widget(help_paragraph, chunks[1]);
         }
     }
 }
