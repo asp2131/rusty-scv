@@ -1,4 +1,4 @@
-use crate::data::{Database, Class, Student};
+use crate::data::{Database, Class}; // Removed unused Student import
 use crate::ui::screens::ScreenType;
 
 pub struct AppState {
@@ -47,14 +47,6 @@ impl AppState {
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum MenuState {
-    MainMenu,
-    ClassSelection,
-    ClassManagement(Class),
-    StudentManagement(Class),
 }
 
 pub struct NavigationStack {

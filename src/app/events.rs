@@ -1,5 +1,5 @@
 use crate::data::{Class, Student};
-use crate::ui::screens::{ScreenType, ScreenTypeVariant, ScreenContext};
+use crate::ui::screens::ScreenType; // Fixed import - removed unused ScreenTypeVariant and ScreenContext
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {

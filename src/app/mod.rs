@@ -19,7 +19,7 @@ use crate::{
         animations::AnimationState,
         components::loading::LoadingWidget,
         layout::ResponsiveLayout,
-        screens::{create_screen, Screen, ScreenType, ScreenTypeVariant, ScreenContext},
+        screens::{Screen, ScreenType, ScreenTypeVariant, ScreenContext}, // Fixed imports
         themes::{Theme, THEMES},
     },
 };
@@ -30,7 +30,7 @@ pub mod state;
 
 pub use config::Config;
 pub use events::{AppEvent, EventHandler};
-pub use state::{AppState, MenuState, NavigationStack};
+pub use state::{AppState, NavigationStack}; // Removed MenuState as it's unused
 
 const FRAME_RATE: u64 = 60; // Target 60 FPS
 const FRAME_DURATION: Duration = Duration::from_millis(1000 / FRAME_RATE);
@@ -311,8 +311,8 @@ impl App {
             },
             AppEvent::RefreshData => {
                 // Handle refresh based on current screen
-                match self.current_screen.screen_type() {
-                    ScreenType::ClassSelection => {
+                match self.current_screen.screen_type().variant() {
+                    ScreenTypeVariant::ClassSelection => {
                         // Refresh classes for the class selection screen
                         match self.state.database.get_classes().await {
                             Ok(classes) => {

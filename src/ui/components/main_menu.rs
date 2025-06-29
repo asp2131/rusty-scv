@@ -15,7 +15,7 @@ use crate::{
     ui::{
         animations::AnimationState,
         components::menu::{AnimatedMenu, MenuPresets},
-        screens::{Screen, ScreenType},
+        screens::{Screen, ScreenType, ScreenTypeVariant}, // Added ScreenTypeVariant import
         themes::{Theme, AsciiArt},
     },
 };
@@ -184,7 +184,7 @@ impl MainMenuScreen {
 
 impl Screen for MainMenuScreen {
     fn screen_type(&self) -> ScreenType {
-        ScreenType::MainMenu
+        ScreenType::new(ScreenTypeVariant::MainMenu) // Fixed: use new() method
     }
 
     fn handle_key_event<'a>(
@@ -241,7 +241,7 @@ impl Screen for MainMenuScreen {
     fn update<'a>(
         &'a mut self,
         delta_time: Duration,
-        state: &'a mut AppState,
+        _state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         // Update animations
         let animation_state = AnimationState::default();

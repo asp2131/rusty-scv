@@ -2,7 +2,7 @@ use anyhow::Result;
 use rusqlite::{Connection, params};
 use std::path::PathBuf;
 use dirs::home_dir;
-use chrono::{DateTime, Utc};
+use chrono::Utc; // Removed unused DateTime import
 
 use super::models::{Class, Student};
 
