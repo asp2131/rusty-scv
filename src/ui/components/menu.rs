@@ -213,6 +213,7 @@ impl Widget for &mut AnimatedMenu {
     }
 }
 
+
 impl AnimatedMenu {
     fn render_menu_items(&mut self, area: Rect, buf: &mut Buffer, entrance_progress: f32) {
         let theme = &crate::ui::themes::THEMES.neon_night; // TODO: Get from context
