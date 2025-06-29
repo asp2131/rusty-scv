@@ -13,12 +13,15 @@ use std::{
 };
 use tokio::time::interval;
 
-use crate::ui::{
-    animations::AnimationState,
-    components::loading::LoadingWidget,
-    layout::ResponsiveLayout,
-    screens::{Screen, ScreenType},
-    themes::{Theme, THEMES},
+use crate::{
+    data::Database,
+    ui::{
+        animations::AnimationState,
+        components::loading::LoadingWidget,
+        layout::ResponsiveLayout,
+        screens::{create_screen, Screen, ScreenType, ScreenTypeVariant, ScreenContext},
+        themes::{Theme, THEMES},
+    },
 };
 
 pub mod config;
@@ -171,6 +174,16 @@ impl App {
     async fn handle_app_event(&mut self, event: AppEvent) -> Result<()> {
         match event {
             AppEvent::NavigateToScreen(screen_type) => {
+                // Check if we need to add context to the screen type
+                let screen_type = if screen_type.variant() == &ScreenTypeVariant::ClassManagement {
+                    if let Some(class) = &self.state.current_class {
+                        screen_type.with_context(ScreenContext::Class(class.clone()))
+                    } else {
+                        screen_type
+                    }
+                } else {
+                    screen_type
+                };
                 self.navigate_to_screen(screen_type).await?;
             },
             AppEvent::GoBack => {
@@ -209,7 +222,7 @@ impl App {
                                     self.animation_state.trigger_success_celebration();
                                     
                                     // Navigate back to class selection
-                                    self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                                    self.navigate_to_screen(ScreenType::new(ScreenTypeVariant::ClassSelection)).await?;
                                     
                                     // Show success message (temporarily using error display for visibility)
                                     self.state.set_error(Some(format!("✅ Class '{}' created successfully!", class.name)));
@@ -219,7 +232,7 @@ impl App {
                                     self.state.set_error(Some(format!("Failed to create class: {}", e)));
                                     
                                     // Go back to create class screen
-                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::CreateClass) {
+                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::new(ScreenTypeVariant::CreateClass)) {
                                         self.current_screen = screen;
                                     }
                                 }
@@ -242,7 +255,14 @@ impl App {
                 println!("Success: {}", message);
             },
             AppEvent::SelectClass(class) => {
-                self.state.current_class = Some(class);
+                // Store the selected class in the app state
+                self.state.current_class = Some(class.clone());
+                
+                // Navigate to the class management screen with the selected class
+                self.navigate_to_screen(
+                    ScreenType::new(ScreenTypeVariant::ClassManagement)
+                        .with_context(ScreenContext::Class(class))
+                ).await?;
             },
             AppEvent::ClassCreated(class) => {
                 // Create the class in the database
@@ -254,7 +274,7 @@ impl App {
                         self.animation_state.trigger_success_celebration();
                         
                         // Navigate to class selection
-                        self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                        self.navigate_to_screen(ScreenType::new(ScreenTypeVariant::ClassSelection)).await?;
                         
                         // Show success message (temporarily using error display)
                         self.state.set_error(Some(format!("✅ Class '{}' created successfully!", created_class.name)));
@@ -327,7 +347,7 @@ impl App {
         self.animation_state.trigger_transition();
         
         // Auto-refresh data for certain screens - do it directly to avoid recursion
-        if screen_type == ScreenType::ClassSelection {
+        if screen_type.variant() == &ScreenTypeVariant::ClassSelection {
             match self.state.database.get_classes().await {
                 Ok(classes) => {
                     // Cast to specific screen type to call set_classes

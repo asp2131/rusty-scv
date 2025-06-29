@@ -7,8 +7,8 @@ use crate::{
     app::{AppEvent, AppState},
     ui::{
         animations::AnimationState,
-        components::menu::{AnimatedMenu, MenuPresets},
-        screens::{Screen, ScreenType},
+        components::menu::{AnimatedMenu, MenuBuilder, MenuItem, MenuPresets},
+        screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },
 };
@@ -30,7 +30,7 @@ impl MainMenuScreen {
 
 impl Screen for MainMenuScreen {
     fn screen_type(&self) -> ScreenType {
-        ScreenType::MainMenu
+        ScreenType::new(ScreenTypeVariant::MainMenu)
     }
 
     fn handle_key_event(&mut self, key: KeyEvent, _state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + '_>> {
@@ -47,13 +47,13 @@ impl Screen for MainMenuScreen {
                 if let Some(item) = self.menu.selected_item() {
                     match item.title.as_str() {
                         "Manage Classes" => {
-                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::ClassSelection)))
+                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::ClassSelection))))
                         },
                         "Create Class" => {
-                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass)))
+                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass))))
                         },
                         "Settings" => {
-                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::Settings)))
+                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::Settings))))
                         },
                         "Quit" => {
                             Ok(Some(AppEvent::Quit))
@@ -66,13 +66,13 @@ impl Screen for MainMenuScreen {
             },
             // Hotkeys
             KeyCode::Char('m') => {
-                Ok(Some(AppEvent::NavigateToScreen(ScreenType::ClassSelection)))
+                Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::ClassSelection))))
             },
             KeyCode::Char('c') => {
-                Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass)))
+                Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass))))
             },
             KeyCode::Char('s') => {
-                Ok(Some(AppEvent::NavigateToScreen(ScreenType::Settings)))
+                Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::Settings))))
             },
             KeyCode::Char('q') => {
                 Ok(Some(AppEvent::Quit))

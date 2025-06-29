@@ -19,7 +19,7 @@ use crate::{
     ui::{
         animations::AnimationState,
         components::input::AnimatedInput,
-        screens::{Screen, ScreenType},
+        screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },
 };
@@ -32,12 +32,8 @@ pub struct CreateClassScreen {
 
 impl CreateClassScreen {
     pub fn new() -> Self {
-        let mut input = AnimatedInput::new("Class Name");
-        input.set_placeholder("Enter class name (e.g., 'CS101 Fall 2024')");
-        input.focus();
-        
         Self {
-            input,
+            input: AnimatedInput::new("Class Name"),
             error: None,
             creating: false,
         }
@@ -46,7 +42,7 @@ impl CreateClassScreen {
 
 impl Screen for CreateClassScreen {
     fn screen_type(&self) -> ScreenType {
-        ScreenType::CreateClass
+        ScreenType::new(ScreenTypeVariant::CreateClass)
     }
 
     fn handle_key_event<'a>(

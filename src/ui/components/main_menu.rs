@@ -223,9 +223,9 @@ impl Screen for MainMenuScreen {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(selected_item) = self.menu.selected_item() {
                     match selected_item.title.as_str() {
-                        "Create Class" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))),
-                        "Manage Classes" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::ClassSelection))),
-                        "Settings" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::Settings))),
+                        "Create Class" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass)))),
+                        "Manage Classes" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::ClassSelection)))),
+                        "Settings" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::Settings)))),
                         "Quit" => Ok(Some(AppEvent::Quit)),
                         _ => Ok(None),
                     }
@@ -451,4 +451,3 @@ fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
         _ => if t < 0.5 { start } else { end },
     }
 }
-        

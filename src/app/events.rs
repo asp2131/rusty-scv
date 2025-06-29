@@ -1,5 +1,5 @@
 use crate::data::{Class, Student};
-use crate::ui::screens::ScreenType;
+use crate::ui::screens::{ScreenType, ScreenTypeVariant, ScreenContext};
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
