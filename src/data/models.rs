@@ -1,14 +1,14 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Class {
     pub id: i64,
     pub name: String,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Student {
     pub id: i64,
     pub class_id: i64,

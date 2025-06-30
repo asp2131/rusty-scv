@@ -19,8 +19,11 @@ use crate::{
     data::Class,
     ui::{
         animations::AnimationState,
-        components::menu::{AnimatedMenu, MenuBuilder, MenuItem},
-        screens::{Screen, ScreenType},
+        components::{
+            loading::LoadingWidget,
+            menu::{AnimatedMenu, MenuBuilder, MenuItem, MenuPresets},
+        },
+        screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },
 };
@@ -88,12 +91,13 @@ impl ClassSelectionScreen {
             .title("📚 Select a Class");
             
         if classes.is_empty() {
+            // Show empty state with option to create a class
             builder = builder
-                .simple_item("No classes found")
-                .item(MenuItem::new("Create your first class")
-                    .with_description("Start by creating a new class")
-                    .with_icon("➕"));
+                .item(MenuItem::new("No classes found")
+                    .with_description("Press 'n' to create your first class")
+                    .with_icon("ℹ️"));
         } else {
+            // Add each class to the menu
             for class in classes {
                 builder = builder.item(MenuItem::new(&class.name)
                     .with_description(&format!("Manage class: {}", class.name))
@@ -116,7 +120,7 @@ impl ClassSelectionScreen {
 
 impl Screen for ClassSelectionScreen {
     fn screen_type(&self) -> ScreenType {
-        ScreenType::ClassSelection
+        ScreenType::new(ScreenTypeVariant::ClassSelection)
     }
 
     fn handle_key_event<'a>(
@@ -124,36 +128,54 @@ impl Screen for ClassSelectionScreen {
         key: KeyEvent,
         _state: &'a AppState,
     ) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>> {
-        if let KeyCode::Char('q') | KeyCode::Esc = key.code {
+        // Handle quit
+        if key.code == KeyCode::Char('q') && key.modifiers.contains(KeyModifiers::CONTROL) {
             return Box::pin(async { Ok(Some(AppEvent::Quit)) });
         }
         
-        if let KeyCode::Char('n') = key.code {
-            return Box::pin(async { Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))) });
-        }
-        
-        if let KeyCode::Char('r') = key.code {
-            return Box::pin(async { Ok(Some(AppEvent::RefreshData)) });
-        }
-        
+        // Handle navigation
         match key.code {
+            // Navigation keys
             KeyCode::Char('j') | KeyCode::Down => {
                 self.menu.select_next();
-            }
+            },
             KeyCode::Char('k') | KeyCode::Up => {
                 self.menu.select_previous();
-            }
-            KeyCode::Enter => {
-                if let Some(selected_item) = self.menu.selected_item() {
-                    if selected_item.title == "Create New Class" {
-                        return Box::pin(async { Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))) });
-                    } else if selected_item.title == "Back" {
-                        return Box::pin(async { Ok(Some(AppEvent::GoBack)) });
-                    } else if let Some(class) = self.classes.iter().find(|c| c.name == selected_item.title) {
-                        return Box::pin(async { Ok(Some(AppEvent::SelectClass(class.clone()))) });
+            },
+            // Enter key for selection
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                if self.classes.is_empty() {
+                    // If no classes, allow creating a new one
+                    return Box::pin(async { 
+                        Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass)))) 
+                    });
+                } else if let Some(selected_item) = self.menu.selected_item() {
+                    // Find the selected class
+                    if let Some(class) = self.classes.iter().find(|c| c.name == selected_item.title) {
+                        return Box::pin(async { 
+                            Ok(Some(AppEvent::SelectClass(class.clone()))) 
+                        });
                     }
                 }
-            }
+            },
+            // Create new class
+            KeyCode::Char('n') => {
+                return Box::pin(async { 
+                    Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass)))) 
+                });
+            },
+            // Refresh class list
+            KeyCode::Char('r') => {
+                return Box::pin(async { 
+                    Ok(Some(AppEvent::RefreshData)) 
+                });
+            },
+            // Go back to main menu
+            KeyCode::Esc => {
+                return Box::pin(async { 
+                    Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::MainMenu))))
+                });
+            },
             _ => {}
         }
         

@@ -3,4 +3,4 @@ pub mod models;
 pub mod github;
 
 pub use database::Database;
-pub use models::{Class, Student, StudentWithClass};
+pub use models::{Class, Student}; // Removed unused StudentWithClass

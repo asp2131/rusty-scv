@@ -13,12 +13,15 @@ use std::{
 };
 use tokio::time::interval;
 
-use crate::ui::{
-    animations::AnimationState,
-    components::loading::LoadingWidget,
-    layout::ResponsiveLayout,
-    screens::{Screen, ScreenType},
-    themes::{Theme, THEMES},
+use crate::{
+    data::Database,
+    ui::{
+        animations::AnimationState,
+        components::loading::LoadingWidget,
+        layout::ResponsiveLayout,
+        screens::{Screen, ScreenType, ScreenTypeVariant, ScreenContext}, // Fixed imports
+        themes::{Theme, THEMES},
+    },
 };
 
 pub mod config;
@@ -27,7 +30,7 @@ pub mod state;
 
 pub use config::Config;
 pub use events::{AppEvent, EventHandler};
-pub use state::{AppState, MenuState, NavigationStack};
+pub use state::{AppState, NavigationStack}; // Removed MenuState as it's unused
 
 const FRAME_RATE: u64 = 60; // Target 60 FPS
 const FRAME_DURATION: Duration = Duration::from_millis(1000 / FRAME_RATE);
@@ -171,6 +174,16 @@ impl App {
     async fn handle_app_event(&mut self, event: AppEvent) -> Result<()> {
         match event {
             AppEvent::NavigateToScreen(screen_type) => {
+                // Check if we need to add context to the screen type
+                let screen_type = if screen_type.variant() == &ScreenTypeVariant::ClassManagement {
+                    if let Some(class) = &self.state.current_class {
+                        screen_type.with_context(ScreenContext::Class(class.clone()))
+                    } else {
+                        screen_type
+                    }
+                } else {
+                    screen_type
+                };
                 self.navigate_to_screen(screen_type).await?;
             },
             AppEvent::GoBack => {
@@ -209,7 +222,7 @@ impl App {
                                     self.animation_state.trigger_success_celebration();
                                     
                                     // Navigate back to class selection
-                                    self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                                    self.navigate_to_screen(ScreenType::new(ScreenTypeVariant::ClassSelection)).await?;
                                     
                                     // Show success message (temporarily using error display for visibility)
                                     self.state.set_error(Some(format!("✅ Class '{}' created successfully!", class.name)));
@@ -219,7 +232,7 @@ impl App {
                                     self.state.set_error(Some(format!("Failed to create class: {}", e)));
                                     
                                     // Go back to create class screen
-                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::CreateClass) {
+                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::new(ScreenTypeVariant::CreateClass)) {
                                         self.current_screen = screen;
                                     }
                                 }
@@ -242,7 +255,14 @@ impl App {
                 println!("Success: {}", message);
             },
             AppEvent::SelectClass(class) => {
-                self.state.current_class = Some(class);
+                // Store the selected class in the app state
+                self.state.current_class = Some(class.clone());
+                
+                // Navigate to the class management screen with the selected class
+                self.navigate_to_screen(
+                    ScreenType::new(ScreenTypeVariant::ClassManagement)
+                        .with_context(ScreenContext::Class(class))
+                ).await?;
             },
             AppEvent::ClassCreated(class) => {
                 // Create the class in the database
@@ -254,7 +274,7 @@ impl App {
                         self.animation_state.trigger_success_celebration();
                         
                         // Navigate to class selection
-                        self.navigate_to_screen(ScreenType::ClassSelection).await?;
+                        self.navigate_to_screen(ScreenType::new(ScreenTypeVariant::ClassSelection)).await?;
                         
                         // Show success message (temporarily using error display)
                         self.state.set_error(Some(format!("✅ Class '{}' created successfully!", created_class.name)));
@@ -291,8 +311,8 @@ impl App {
             },
             AppEvent::RefreshData => {
                 // Handle refresh based on current screen
-                match self.current_screen.screen_type() {
-                    ScreenType::ClassSelection => {
+                match self.current_screen.screen_type().variant() {
+                    ScreenTypeVariant::ClassSelection => {
                         // Refresh classes for the class selection screen
                         match self.state.database.get_classes().await {
                             Ok(classes) => {
@@ -319,35 +339,56 @@ impl App {
         // Save current screen to navigation stack
         let current_type = self.current_screen.screen_type();
         self.navigation_stack.push(current_type);
-
+    
         // Create new screen
         self.current_screen = crate::ui::screens::create_screen(screen_type.clone())?;
         
         // Trigger enter animation
         self.animation_state.trigger_transition();
         
-        // Auto-refresh data for certain screens - do it directly to avoid recursion
-        if screen_type == ScreenType::ClassSelection {
-            match self.state.database.get_classes().await {
-                Ok(classes) => {
-                    // Cast to specific screen type to call set_classes
-                    if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
-                        class_screen.set_classes(classes);
+        // Auto-refresh data for certain screens
+        match screen_type.variant() {
+            ScreenTypeVariant::ClassSelection => {
+                match self.state.database.get_classes().await {
+                    Ok(classes) => {
+                        if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
+                            class_screen.set_classes(classes);
+                        }
+                    }
+                    Err(e) => {
+                        self.state.set_error(Some(format!("Failed to load classes: {}", e)));
                     }
                 }
-                Err(e) => {
-                    self.state.set_error(Some(format!("Failed to load classes: {}", e)));
-                }
-            }
+            },
+            _ => {}
         }
         
         Ok(())
     }
-
+    
+    // Also update the go_back method to refresh data when going back
+    
     async fn go_back(&mut self) -> Result<()> {
         if let Some(previous_screen_type) = self.navigation_stack.pop() {
-            self.current_screen = crate::ui::screens::create_screen(previous_screen_type)?;
+            self.current_screen = crate::ui::screens::create_screen(previous_screen_type.clone())?;
             self.animation_state.trigger_transition();
+            
+            // Auto-refresh data when going back to certain screens
+            match previous_screen_type.variant() {
+                ScreenTypeVariant::ClassSelection => {
+                    match self.state.database.get_classes().await {
+                        Ok(classes) => {
+                            if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
+                                class_screen.set_classes(classes);
+                            }
+                        }
+                        Err(e) => {
+                            self.state.set_error(Some(format!("Failed to refresh classes: {}", e)));
+                        }
+                    }
+                },
+                _ => {}
+            }
         }
         Ok(())
     }

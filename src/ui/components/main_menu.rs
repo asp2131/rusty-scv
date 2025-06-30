@@ -15,7 +15,7 @@ use crate::{
     ui::{
         animations::AnimationState,
         components::menu::{AnimatedMenu, MenuPresets},
-        screens::{Screen, ScreenType},
+        screens::{Screen, ScreenType, ScreenTypeVariant}, // Added ScreenTypeVariant import
         themes::{Theme, AsciiArt},
     },
 };
@@ -184,7 +184,7 @@ impl MainMenuScreen {
 
 impl Screen for MainMenuScreen {
     fn screen_type(&self) -> ScreenType {
-        ScreenType::MainMenu
+        ScreenType::new(ScreenTypeVariant::MainMenu) // Fixed: use new() method
     }
 
     fn handle_key_event<'a>(
@@ -223,9 +223,9 @@ impl Screen for MainMenuScreen {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(selected_item) = self.menu.selected_item() {
                     match selected_item.title.as_str() {
-                        "Create Class" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::CreateClass))),
-                        "Manage Classes" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::ClassSelection))),
-                        "Settings" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::Settings))),
+                        "Create Class" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass)))),
+                        "Manage Classes" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::ClassSelection)))),
+                        "Settings" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::Settings)))),
                         "Quit" => Ok(Some(AppEvent::Quit)),
                         _ => Ok(None),
                     }
@@ -241,7 +241,7 @@ impl Screen for MainMenuScreen {
     fn update<'a>(
         &'a mut self,
         delta_time: Duration,
-        state: &'a mut AppState,
+        _state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         // Update animations
         let animation_state = AnimationState::default();
@@ -451,4 +451,3 @@ fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
         _ => if t < 0.5 { start } else { end },
     }
 }
-        
