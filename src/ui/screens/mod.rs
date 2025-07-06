@@ -5,6 +5,7 @@ pub mod create_class;
 pub mod delete_student;
 pub mod main_menu;
 pub mod student_management;
+pub mod github_activity;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
@@ -139,6 +140,12 @@ pub async fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
             }
             Err(anyhow::anyhow!("DeleteStudent screen requires class context"))
         }
+        ScreenTypeVariant::GitHubActivity => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                return Ok(Box::new(github_activity::GitHubActivityScreen::new(class.clone())));
+            }
+            Err(anyhow::anyhow!("GitHubActivity screen requires class context"))
+        },
         _ => anyhow::bail!("Screen type not implemented: {:?}", screen_type.variant()),
     }
 }

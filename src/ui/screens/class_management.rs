@@ -124,7 +124,7 @@ impl Screen for ClassManagementScreen {
                     match selected.title.as_str() {
                         "Manage Students" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "Manage Repositories" => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
-                        "View GitHub Activity" => Ok(Some(AppEvent::ShowError("GitHub activity not implemented yet".to_string()))),
+                        "View GitHub Activity" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "Delete Class" => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
                         "Back" => Ok(Some(AppEvent::GoBack)),
                         _ => Ok(None),
@@ -135,7 +135,7 @@ impl Screen for ClassManagementScreen {
             }
             KeyCode::Char('s') => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
             KeyCode::Char('r') => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
-            KeyCode::Char('a') => Ok(Some(AppEvent::ShowError("GitHub activity not implemented yet".to_string()))),
+            KeyCode::Char('a') => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
             KeyCode::Char('d') => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
             KeyCode::Char('b') | KeyCode::Esc => Ok(Some(AppEvent::GoBack)),
             _ => Ok(None),
