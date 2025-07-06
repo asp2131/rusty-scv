@@ -119,6 +119,10 @@ impl ClassSelectionScreen {
 }
 
 impl Screen for ClassSelectionScreen {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn screen_type(&self) -> ScreenType {
         ScreenType::new(ScreenTypeVariant::ClassSelection)
     }
@@ -185,20 +189,20 @@ impl Screen for ClassSelectionScreen {
     fn update<'a>(
         &'a mut self,
         delta_time: Duration,
-        _state: &'a mut AppState,
+        state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         // Update menu animation
         let animation_state = AnimationState::default();
         self.menu.update(delta_time, &animation_state);
         
-        // Note: We'll handle refresh through app events instead of direct database calls
-        // since the Screen trait requires Send futures but AppState is not Sync
+        if self.needs_refresh {
+            self.needs_refresh = false;
+            return Box::pin(async move {
+                self.refresh_classes(state).await
+            });
+        }
         
         Box::pin(async { Ok(()) })
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
     }
 
     fn render(

@@ -3,11 +3,15 @@ use rusqlite::{Connection, params};
 use std::path::PathBuf;
 use dirs::home_dir;
 use chrono::Utc; // Removed unused DateTime import
+use std::sync::Arc;
 
 use super::models::{Class, Student};
 
+use tokio::sync::Mutex;
+
+#[derive(Clone)]
 pub struct Database {
-    conn: Connection,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl Database {
@@ -19,7 +23,7 @@ impl Database {
         // Create tables if they don't exist
         Self::create_tables(&conn)?;
         
-        Ok(Self { conn })
+        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
     }
     
     fn create_tables(conn: &Connection) -> Result<()> {
@@ -61,7 +65,8 @@ impl Database {
     // ===== CLASS OPERATIONS =====
     
     pub async fn create_class(&self, name: &str) -> Result<Class> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare(
             "INSERT INTO classes (name, created_at) VALUES (?, datetime('now')) RETURNING id, name, created_at"
         )?;
         
@@ -77,7 +82,8 @@ impl Database {
     }
     
     pub async fn get_classes(&self) -> Result<Vec<Class>> {
-        let mut stmt = self.conn.prepare("SELECT id, name, created_at FROM classes ORDER BY name")?;
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare("SELECT id, name, created_at FROM classes ORDER BY name")?;
         let class_iter = stmt.query_map([], |row| {
             Ok(Class {
                 id: row.get(0)?,
@@ -95,7 +101,8 @@ impl Database {
     }
     
     pub async fn get_class_by_id(&self, id: i64) -> Result<Option<Class>> {
-        let mut stmt = self.conn.prepare("SELECT id, name, created_at FROM classes WHERE id = ?")?;
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare("SELECT id, name, created_at FROM classes WHERE id = ?")?;
         let mut rows = stmt.query_map(params![id], |row| {
             Ok(Class {
                 id: row.get(0)?,
@@ -111,14 +118,16 @@ impl Database {
     }
     
     pub async fn delete_class(&self, id: i64) -> Result<bool> {
-        let affected = self.conn.execute("DELETE FROM classes WHERE id = ?", params![id])?;
+        let conn = self.conn.lock().await;
+        let affected = conn.execute("DELETE FROM classes WHERE id = ?", params![id])?;
         Ok(affected > 0)
     }
     
     // ===== STUDENT OPERATIONS =====
     
     pub async fn add_student(&self, class_id: i64, username: &str) -> Result<Student> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare(
             "INSERT INTO students (class_id, username, github_username, created_at) 
              VALUES (?, ?, ?, datetime('now')) 
              RETURNING id, class_id, username, github_username, created_at"
@@ -138,7 +147,8 @@ impl Database {
     }
     
     pub async fn get_students_for_class(&self, class_id: i64) -> Result<Vec<Student>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare(
             "SELECT id, class_id, username, github_username, created_at 
              FROM students WHERE class_id = ? ORDER BY username"
         )?;
@@ -161,16 +171,20 @@ impl Database {
     }
     
     pub async fn delete_student(&self, id: i64) -> Result<bool> {
-        let affected = self.conn.execute("DELETE FROM students WHERE id = ?", params![id])?;
+        let conn = self.conn.lock().await;
+        let affected = conn.execute("DELETE FROM students WHERE id = ?", params![id])?;
         Ok(affected > 0)
     }
     
     pub async fn get_student_count_for_class(&self, class_id: i64) -> Result<i64> {
-        let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM students WHERE class_id = ?")?;
+        let conn = self.conn.lock().await;
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM students WHERE class_id = ?")?;
         let count: i64 = stmt.query_row(params![class_id], |row| row.get(0))?;
         Ok(count)
     }
 }
+
+
 
 fn get_database_path() -> Result<PathBuf> {
     let home = home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;

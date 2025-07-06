@@ -232,7 +232,7 @@ impl App {
                                     self.state.set_error(Some(format!("Failed to create class: {}", e)));
                                     
                                     // Go back to create class screen
-                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::new(ScreenTypeVariant::CreateClass)) {
+                                    if let Ok(screen) = crate::ui::screens::create_screen(ScreenType::new(ScreenTypeVariant::CreateClass)).await {
                                         self.current_screen = screen;
                                     }
                                 }
@@ -336,33 +336,9 @@ impl App {
     }
 
     async fn navigate_to_screen(&mut self, screen_type: ScreenType) -> Result<()> {
-        // Save current screen to navigation stack
-        let current_type = self.current_screen.screen_type();
-        self.navigation_stack.push(current_type);
-    
-        // Create new screen
-        self.current_screen = crate::ui::screens::create_screen(screen_type.clone())?;
-        
-        // Trigger enter animation
+        self.navigation_stack.push(self.current_screen.screen_type());
+        self.current_screen = crate::ui::screens::create_screen(screen_type.clone()).await?;
         self.animation_state.trigger_transition();
-        
-        // Auto-refresh data for certain screens
-        match screen_type.variant() {
-            ScreenTypeVariant::ClassSelection => {
-                match self.state.database.get_classes().await {
-                    Ok(classes) => {
-                        if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
-                            class_screen.set_classes(classes);
-                        }
-                    }
-                    Err(e) => {
-                        self.state.set_error(Some(format!("Failed to load classes: {}", e)));
-                    }
-                }
-            },
-            _ => {}
-        }
-        
         Ok(())
     }
     
@@ -370,7 +346,7 @@ impl App {
     
     async fn go_back(&mut self) -> Result<()> {
         if let Some(previous_screen_type) = self.navigation_stack.pop() {
-            self.current_screen = crate::ui::screens::create_screen(previous_screen_type.clone())?;
+            self.current_screen = crate::ui::screens::create_screen(previous_screen_type.clone()).await?;
             self.animation_state.trigger_transition();
             
             // Auto-refresh data when going back to certain screens

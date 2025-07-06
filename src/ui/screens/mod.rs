@@ -1,9 +1,10 @@
-pub mod main_menu;
+pub mod add_students;
+pub mod class_management;
 pub mod class_selection;
 pub mod create_class;
-pub mod class_management;
-// TODO: Implement in next phase
-// pub mod student_management;
+pub mod delete_student;
+pub mod main_menu;
+pub mod student_management;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
@@ -12,7 +13,7 @@ use std::{future::Future, pin::Pin, time::Duration};
 
 use crate::{
     app::{AppEvent, AppState},
-    data::{Class, Student},
+    data::{Class, Database, Student},
     ui::{animations::AnimationState, themes::Theme},
 };
 
@@ -59,6 +60,7 @@ pub enum ScreenTypeVariant {
     GitHubActivity,
     Settings,
     ConfirmDeleteClass,
+    DeleteStudent,
 }
 
 impl std::fmt::Display for ScreenTypeVariant {
@@ -75,6 +77,7 @@ impl std::fmt::Display for ScreenTypeVariant {
             ScreenTypeVariant::GitHubActivity => write!(f, "GitHub Activity"),
             ScreenTypeVariant::Settings => write!(f, "Settings"),
             ScreenTypeVariant::ConfirmDeleteClass => write!(f, "Confirm Delete Class"),
+            ScreenTypeVariant::DeleteStudent => write!(f, "Delete Student"),
         }
     }
 }
@@ -105,7 +108,7 @@ pub trait Screen {
 }
 
 // Create a screen with the given type and optional context
-pub fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
+pub async fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
     match screen_type.variant() {
         ScreenTypeVariant::MainMenu => Ok(Box::new(main_menu::MainMenuScreen::new())),
         ScreenTypeVariant::ClassSelection => Ok(Box::new(class_selection::ClassSelectionScreen::new())),
@@ -115,7 +118,27 @@ pub fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
             }
             Err(anyhow::anyhow!("ClassManagement screen requires class context"))
         },
+        ScreenTypeVariant::StudentManagement => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                return Ok(Box::new(student_management::StudentManagementScreen::new(class.clone())));
+            }
+            Err(anyhow::anyhow!("StudentManagement screen requires class context"))
+        },
+        ScreenTypeVariant::AddStudents => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                return Ok(Box::new(add_students::AddStudentsScreen::new(class.clone())));
+            }
+            Err(anyhow::anyhow!("AddStudents screen requires class context"))
+        },
         ScreenTypeVariant::CreateClass => Ok(Box::new(create_class::CreateClassScreen::new())),
+        ScreenTypeVariant::DeleteStudent => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                let db = Database::init().await?;
+                let students = db.get_students_for_class(class.id).await?;
+                return Ok(Box::new(delete_student::DeleteStudentScreen::new(class.clone(), students)));
+            }
+            Err(anyhow::anyhow!("DeleteStudent screen requires class context"))
+        }
         _ => anyhow::bail!("Screen type not implemented: {:?}", screen_type.variant()),
     }
 }

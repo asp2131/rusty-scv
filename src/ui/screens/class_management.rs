@@ -97,6 +97,10 @@ impl ClassManagementScreen {
 }
 
 impl Screen for ClassManagementScreen {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
     fn screen_type(&self) -> ScreenType {
         ScreenType::new(ScreenTypeVariant::ClassManagement)
     }
@@ -118,7 +122,7 @@ impl Screen for ClassManagementScreen {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(selected) = self.get_selected_item() {
                     match selected.title.as_str() {
-                        "Manage Students" => Ok(Some(AppEvent::ShowError("Student management not implemented yet".to_string()))),
+                        "Manage Students" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "Manage Repositories" => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
                         "View GitHub Activity" => Ok(Some(AppEvent::ShowError("GitHub activity not implemented yet".to_string()))),
                         "Delete Class" => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
@@ -129,7 +133,7 @@ impl Screen for ClassManagementScreen {
                     Ok(None)
                 }
             }
-            KeyCode::Char('s') => Ok(Some(AppEvent::ShowError("Student management not implemented yet".to_string()))),
+            KeyCode::Char('s') => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
             KeyCode::Char('r') => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
             KeyCode::Char('a') => Ok(Some(AppEvent::ShowError("GitHub activity not implemented yet".to_string()))),
             KeyCode::Char('d') => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
@@ -146,10 +150,6 @@ impl Screen for ClassManagementScreen {
         _state: &'a mut AppState,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async { Ok(()) })
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
     }
 
     fn render(
