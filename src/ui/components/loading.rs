@@ -145,9 +145,8 @@ impl LoadingWidget {
     fn render_spinner(&mut self, area: Rect, buf: &mut Buffer) {
         let spinner_frame = self.spinner.current_frame();
         
-        // Create a pulsing effect around the spinner
-        let pulse = (self.pulse_animation.sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-        let color = interpolate_color(self.theme.primary, self.theme.secondary, pulse);
+        // Use static color for spinner
+        let color = self.theme.primary;
         
         let spinner_text = format!("  {}  ", spinner_frame);
         let line = Line::from(vec![
@@ -168,7 +167,7 @@ impl LoadingWidget {
                 height: 1,
             };
 
-            let effect_intensity = (pulse * 5.0) as usize;
+            let effect_intensity = (self.pulse_animation.sin() * 5.0) as usize;
             let effect_char = match effect_intensity {
                 0 => "·",
                 1 => "⋅",
@@ -191,9 +190,9 @@ impl LoadingWidget {
         let progress = (current / total).clamp(0.0, 1.0);
         let percentage = (progress * 100.0) as u16;
 
-        // Create an animated progress bar
-        let pulse = *self.progress.pulse.value();
-        let bar_color = interpolate_color(self.theme.primary, self.theme.accent, pulse);
+        // Create static progress bar
+        let _pulse = *self.progress.pulse.value();
+        let bar_color = self.theme.primary;
 
         let gauge = Gauge::default()
             .block(Block::default())
@@ -329,14 +328,9 @@ impl LoadingWidget {
                 let char_idx = rng.gen_range(0..self.matrix_chars.len());
                 let char = self.matrix_chars[char_idx];
                 
-                // Vary the intensity
-                let intensity = rng.gen_range(0..4);
-                let color = match intensity {
-                    0 => self.theme.success,
-                    1 => interpolate_color(self.theme.success, self.theme.primary, 0.3),
-                    2 => interpolate_color(self.theme.success, self.theme.primary, 0.6),
-                    _ => self.theme.primary,
-                };
+                // Use static color for matrix
+                let _intensity = rng.gen_range(0..4);
+                let _color = self.theme.success;
 
                 matrix_text.push(char);
             } else {
@@ -382,18 +376,6 @@ impl LoadingWidget {
     }
 }
 
-// Color interpolation helper
-fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
-    match (start, end) {
-        (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
-            let r = (r1 as f32 + (r2 as f32 - r1 as f32) * t) as u8;
-            let g = (g1 as f32 + (g2 as f32 - g1 as f32) * t) as u8;
-            let b = (b1 as f32 + (b2 as f32 - b1 as f32) * t) as u8;
-            Color::Rgb(r, g, b)
-        },
-        _ => if t < 0.5 { start } else { end },
-    }
-}
 
 /// Preset loading widgets for common operations
 pub struct LoadingPresets;

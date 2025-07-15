@@ -246,13 +246,11 @@ impl AnimatedMenu {
                 height: 1,
             };
 
-            // Calculate selection highlight with pulse animation
-            let mut style = if is_selected {
-                let pulse = (self.highlight_animation.sin() * 0.3 + 0.7).clamp(0.4, 1.0);
-                let highlight_color = interpolate_color(theme.highlight, theme.primary, pulse);
+            // Use static highlight color for selected items
+            let style = if is_selected {
                 Style::default()
                     .fg(theme.text)
-                    .bg(highlight_color)
+                    .bg(theme.highlight)
                     .add_modifier(Modifier::BOLD)
             } else if item.enabled {
                 Style::default().fg(theme.text)
@@ -349,18 +347,6 @@ fn ease_in_out_cubic(t: f32) -> f32 {
     }
 }
 
-// Color interpolation helper
-fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
-    match (start, end) {
-        (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
-            let r = (r1 as f32 + (r2 as f32 - r1 as f32) * t) as u8;
-            let g = (g1 as f32 + (g2 as f32 - g1 as f32) * t) as u8;
-            let b = (b1 as f32 + (b2 as f32 - b1 as f32) * t) as u8;
-            Color::Rgb(r, g, b)
-        },
-        _ => if t < 0.5 { start } else { end },
-    }
-}
 
 /// Builder for creating animated menus easily
 pub struct MenuBuilder {

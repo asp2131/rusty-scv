@@ -1,8 +1,11 @@
 use crate::data::{Database, Class}; // Removed unused Student import
 use crate::ui::screens::ScreenType;
+use crate::git::GitManager;
+use std::path::PathBuf;
 
 pub struct AppState {
     pub database: Database,
+    pub git_manager: GitManager,
     pub current_class: Option<Class>,
     pub loading: bool,
     pub loading_message: String,
@@ -13,8 +16,16 @@ impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
         let database = Database::init().await?;
         
+        // Create repos directory in home folder
+        let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+        let repos_dir = home_dir.join("rusty-scv-repos");
+        std::fs::create_dir_all(&repos_dir)?;
+        
+        let git_manager = GitManager::new(repos_dir);
+        
         Ok(Self {
             database,
+            git_manager,
             current_class: None,
             loading: false,
             loading_message: String::new(),

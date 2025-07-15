@@ -149,14 +149,6 @@ impl App {
                 self.should_quit = true;
                 return Ok(());
             },
-            (KeyCode::Esc, KeyModifiers::NONE) => {
-                if self.navigation_stack.can_go_back() {
-                    self.go_back().await?;
-                } else {
-                    self.should_quit = true;
-                }
-                return Ok(());
-            },
             _ => {}
         }
 
@@ -306,6 +298,139 @@ impl App {
             AppEvent::CleanRepositories => {
                 // TODO: Implement repository cleaning
             },
+            AppEvent::CloneRepo(github_username) => {
+                if let Some(class) = &self.state.current_class {
+                    let class_name = class.name.clone();
+                    let repos_dir = self.state.git_manager.repos_dir.clone();
+                    
+                    self.state.set_loading(true, format!("Cloning repository for {}...", github_username));
+                    
+                    let git_manager = crate::git::GitManager::new(repos_dir);
+                    match git_manager.clone_repo(&github_username, &class_name).await {
+                        Ok(()) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("✅ Successfully cloned repository for {}", github_username)));
+                        }
+                        Err(e) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("Failed to clone repository for {}: {}", github_username, e)));
+                        }
+                    }
+                }
+            },
+            AppEvent::PullRepo(github_username) => {
+                if let Some(class) = &self.state.current_class {
+                    let class_name = class.name.clone();
+                    let repos_dir = self.state.git_manager.repos_dir.clone();
+                    
+                    self.state.set_loading(true, format!("Pulling latest changes for {}...", github_username));
+                    
+                    let git_manager = crate::git::GitManager::new(repos_dir);
+                    match git_manager.pull_repo(&github_username, &class_name).await {
+                        Ok(()) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("✅ Successfully pulled latest changes for {}", github_username)));
+                        }
+                        Err(e) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("Failed to pull repository for {}: {}", github_username, e)));
+                        }
+                    }
+                }
+            },
+            AppEvent::CleanRepo(github_username) => {
+                if let Some(class) = &self.state.current_class {
+                    let class_name = class.name.clone();
+                    let repos_dir = self.state.git_manager.repos_dir.clone();
+                    
+                    self.state.set_loading(true, format!("Cleaning repository for {}...", github_username));
+                    
+                    let git_manager = crate::git::GitManager::new(repos_dir);
+                    match git_manager.clean_repo(&github_username, &class_name).await {
+                        Ok(()) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("✅ Successfully cleaned repository for {}", github_username)));
+                        }
+                        Err(e) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("Failed to clean repository for {}: {}", github_username, e)));
+                        }
+                    }
+                }
+            },
+            AppEvent::OpenInTerminal(github_username) => {
+                if let Some(class) = &self.state.current_class {
+                    let class_name = class.name.clone();
+                    let repos_dir = self.state.git_manager.repos_dir.clone();
+                    
+                    let git_manager = crate::git::GitManager::new(repos_dir);
+                    match git_manager.open_terminal(&github_username, &class_name) {
+                        Ok(()) => {
+                            self.state.set_error(Some(format!("✅ Opened terminal for {}'s repository", github_username)));
+                        }
+                        Err(e) => {
+                            self.state.set_error(Some(format!("Failed to open terminal for {}: {}", github_username, e)));
+                        }
+                    }
+                }
+            },
+            AppEvent::CloneAllRepos => {
+                if let Some(class) = &self.state.current_class {
+                    let class_name = class.name.clone();
+                    let class_id = class.id;
+                    let repos_dir = self.state.git_manager.repos_dir.clone();
+                    
+                    self.state.set_loading(true, format!("Cloning all repositories for {}...", class_name));
+                    
+                    // Get all students for this class
+                    match self.state.database.get_students_for_class(class_id).await {
+                        Ok(students) => {
+                            if students.is_empty() {
+                                self.state.set_loading(false, String::new());
+                                self.state.set_error(Some("No students found in this class.".to_string()));
+                            } else {
+                                let git_manager = crate::git::GitManager::new(repos_dir);
+                                match git_manager.clone_all_repos(&students, &class_name).await {
+                                    Ok(results) => {
+                                        self.state.set_loading(false, String::new());
+                                        
+                                        // Count successes and failures
+                                        let mut successes = 0;
+                                        let mut failures = Vec::new();
+                                        
+                                        for (username, result) in results {
+                                            match result {
+                                                Ok(()) => successes += 1,
+                                                Err(e) => failures.push(format!("{}: {}", username, e)),
+                                            }
+                                        }
+                                        
+                                        if failures.is_empty() {
+                                            self.state.set_error(Some(format!("✅ Successfully cloned {} repositories", successes)));
+                                        } else {
+                                            let failure_summary = if successes > 0 {
+                                                format!("✅ Cloned {} repositories\n❌ Failed to clone {} repositories:\n{}", 
+                                                       successes, failures.len(), failures.join("\n"))
+                                            } else {
+                                                format!("❌ Failed to clone repositories:\n{}", failures.join("\n"))
+                                            };
+                                            self.state.set_error(Some(failure_summary));
+                                        }
+                                    }
+                                    Err(e) => {
+                                        self.state.set_loading(false, String::new());
+                                        self.state.set_error(Some(format!("Failed to clone repositories: {}", e)));
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            self.state.set_loading(false, String::new());
+                            self.state.set_error(Some(format!("Failed to get students: {}", e)));
+                        }
+                    }
+                }
+            },
             AppEvent::FetchGitHubActivity => {
                 // TODO: Implement GitHub activity fetching
             },
@@ -365,6 +490,9 @@ impl App {
                 },
                 _ => {}
             }
+        } else {
+            // If there's nowhere to go back to, exit the app
+            self.should_quit = true;
         }
         Ok(())
     }

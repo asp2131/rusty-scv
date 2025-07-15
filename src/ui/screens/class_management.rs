@@ -123,7 +123,7 @@ impl Screen for ClassManagementScreen {
                 if let Some(selected) = self.get_selected_item() {
                     match selected.title.as_str() {
                         "Manage Students" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
-                        "Manage Repositories" => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
+                        "Manage Repositories" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::RepositoryManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "View GitHub Activity" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "Delete Class" => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
                         "Back" => Ok(Some(AppEvent::GoBack)),

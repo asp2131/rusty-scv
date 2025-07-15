@@ -6,6 +6,7 @@ pub mod delete_student;
 pub mod main_menu;
 pub mod student_management;
 pub mod github_activity;
+pub mod repo_management; // <-- Added
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
@@ -145,6 +146,14 @@ pub async fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
                 return Ok(Box::new(github_activity::GitHubActivityScreen::new(class.clone())));
             }
             Err(anyhow::anyhow!("GitHubActivity screen requires class context"))
+        },
+        ScreenTypeVariant::RepositoryManagement => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                let db = Database::init().await?;
+                let students = db.get_students_for_class(class.id).await?;
+                return Ok(Box::new(repo_management::RepoManagementScreen::new(class.clone(), students)));
+            }
+            Err(anyhow::anyhow!("RepositoryManagement screen requires class context"))
         },
         _ => anyhow::bail!("Screen type not implemented: {:?}", screen_type.variant()),
     }

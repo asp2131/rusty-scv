@@ -174,10 +174,10 @@ impl Screen for ClassSelectionScreen {
                     Ok(Some(AppEvent::RefreshData)) 
                 });
             },
-            // Go back to main menu
+            // Go back to previous screen
             KeyCode::Esc => {
                 return Box::pin(async { 
-                    Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::MainMenu))))
+                    Ok(Some(AppEvent::GoBack))
                 });
             },
             _ => {}

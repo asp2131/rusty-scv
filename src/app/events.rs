@@ -32,6 +32,15 @@ pub enum AppEvent {
     PullRepositories,
     CleanRepositories,
     
+    // Individual repo actions
+    CloneRepo(String), // github_username
+    PullRepo(String), // github_username
+    CleanRepo(String), // github_username
+    OpenInTerminal(String), // github_username
+    
+    // Batch repo actions
+    CloneAllRepos,
+    
     // GitHub operations
     FetchGitHubActivity,
     RefreshData,
