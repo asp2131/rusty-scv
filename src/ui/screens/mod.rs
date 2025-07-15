@@ -6,7 +6,8 @@ pub mod delete_student;
 pub mod main_menu;
 pub mod student_management;
 pub mod github_activity;
-pub mod repo_management; // <-- Added
+pub mod repo_management;
+pub mod week_view;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
@@ -60,6 +61,7 @@ pub enum ScreenTypeVariant {
     RemoveStudent,
     RepositoryManagement,
     GitHubActivity,
+    WeekView,
     Settings,
     ConfirmDeleteClass,
     DeleteStudent,
@@ -77,6 +79,7 @@ impl std::fmt::Display for ScreenTypeVariant {
             ScreenTypeVariant::RemoveStudent => write!(f, "Remove Student"),
             ScreenTypeVariant::RepositoryManagement => write!(f, "Repository Management"),
             ScreenTypeVariant::GitHubActivity => write!(f, "GitHub Activity"),
+            ScreenTypeVariant::WeekView => write!(f, "Week View"),
             ScreenTypeVariant::Settings => write!(f, "Settings"),
             ScreenTypeVariant::ConfirmDeleteClass => write!(f, "Confirm Delete Class"),
             ScreenTypeVariant::DeleteStudent => write!(f, "Delete Student"),
@@ -154,6 +157,14 @@ pub async fn create_screen(screen_type: ScreenType) -> Result<Box<dyn Screen>> {
                 return Ok(Box::new(repo_management::RepoManagementScreen::new(class.clone(), students)));
             }
             Err(anyhow::anyhow!("RepositoryManagement screen requires class context"))
+        },
+        ScreenTypeVariant::WeekView => {
+            if let Some(ScreenContext::Class(class)) = screen_type.context() {
+                let db = Database::init().await?;
+                let students = db.get_students_for_class(class.id).await?;
+                return Ok(Box::new(week_view::WeekViewScreen::new(class.clone(), students)));
+            }
+            Err(anyhow::anyhow!("WeekView screen requires class context"))
         },
         _ => anyhow::bail!("Screen type not implemented: {:?}", screen_type.variant()),
     }

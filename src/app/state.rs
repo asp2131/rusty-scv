@@ -10,6 +10,7 @@ pub struct AppState {
     pub loading: bool,
     pub loading_message: String,
     pub error: Option<String>,
+    pub github_token: Option<String>,
 }
 
 impl AppState {
@@ -30,7 +31,12 @@ impl AppState {
             loading: false,
             loading_message: String::new(),
             error: None,
+            github_token: None,
         })
+    }
+    
+    pub fn set_github_token(&mut self, token: Option<String>) {
+        self.github_token = token;
     }
     
     // Helper methods

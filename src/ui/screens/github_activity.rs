@@ -71,8 +71,8 @@ impl Screen for GitHubActivityScreen {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if let Some(selected_item) = self.menu.selected_item() {
                     match selected_item.title.as_str() {
-                        "Week View" => Ok(Some(AppEvent::ShowError("Week View not implemented yet".to_string()))),
-                        "Check Latest Activity" => Ok(Some(AppEvent::ShowError("Check Latest Activity not implemented yet".to_string()))),
+                        "Week View" => Ok(Some(AppEvent::ShowWeekView)),
+                        "Check Latest Activity" => Ok(Some(AppEvent::ShowLatestActivity)),
                         "Back" => Ok(Some(AppEvent::GoBack)),
                         _ => Ok(None),
                     }

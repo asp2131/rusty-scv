@@ -60,7 +60,8 @@ impl App {
         let config = Config::load().await?;
         
         // Initialize components
-        let state = AppState::new().await?;
+        let mut state = AppState::new().await?;
+        state.set_github_token(github_token.clone());
         let event_handler = EventHandler::new();
         let animation_state = AnimationState::new();
         let layout = ResponsiveLayout::new();
@@ -434,6 +435,29 @@ impl App {
             AppEvent::FetchGitHubActivity => {
                 // TODO: Implement GitHub activity fetching
             },
+            AppEvent::ShowWeekView => {
+                if let Some(class) = self.state.current_class.clone() {
+                    self.state.set_loading(true, "Loading GitHub activity data...".to_string());
+                    
+                    // Navigate to Week View screen
+                    self.navigate_to_screen(
+                        ScreenType::new(ScreenTypeVariant::WeekView)
+                            .with_context(ScreenContext::Class(class))
+                    ).await?;
+                    
+                    // Load activity data for Week View screen
+                    let github_token = self.state.github_token.clone();
+                    if let Some(week_view_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::week_view::WeekViewScreen>() {
+                        week_view_screen.load_activity_data(github_token).await;
+                    }
+                    
+                    self.state.set_loading(false, String::new());
+                }
+            },
+            AppEvent::ShowLatestActivity => {
+                // TODO: Implement latest activity screen
+                self.state.set_error(Some("Latest Activity not implemented yet".to_string()));
+            },
             AppEvent::RefreshData => {
                 // Handle refresh based on current screen
                 match self.current_screen.screen_type().variant() {
@@ -450,6 +474,16 @@ impl App {
                                 self.state.set_error(Some(format!("Failed to refresh classes: {}", e)));
                             }
                         }
+                    }
+                    ScreenTypeVariant::WeekView => {
+                        // Refresh GitHub activity data for Week View screen
+                        self.state.set_loading(true, "Refreshing GitHub activity data...".to_string());
+                        
+                        if let Some(week_view_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::week_view::WeekViewScreen>() {
+                            week_view_screen.load_activity_data(self.state.github_token.clone()).await;
+                        }
+                        
+                        self.state.set_loading(false, String::new());
                     }
                     _ => {
                         // For other screens, just ignore refresh for now
