@@ -14,12 +14,12 @@ use std::{
 use tokio::time::interval;
 
 use crate::{
-    data::{Database, github::GitHubClient},
+    data::github::GitHubClient,
     ui::{
         animations::AnimationState,
         components::loading::LoadingWidget,
         layout::ResponsiveLayout,
-        screens::{Screen, ScreenType, ScreenTypeVariant, ScreenContext, create_screen}, // Fixed imports
+        screens::{Screen, ScreenType, ScreenTypeVariant, ScreenContext}, // Fixed imports
         themes::{Theme, THEMES},
     },
 };
@@ -458,30 +458,23 @@ impl App {
                 if let Some(class) = self.state.get_current_class().cloned() {
                     self.state.set_loading(true, "Loading latest activity...".to_string());
                     
-                    let new_screen = ScreenType::new(ScreenTypeVariant::LatestActivity)
-                        .with_context(ScreenContext::Class(class));
+                    // Navigate to Latest Activity screen
+                    self.navigate_to_screen(
+                        ScreenType::new(ScreenTypeVariant::LatestActivity)
+                            .with_context(ScreenContext::Class(class))
+                    ).await?;
                     
-                    match create_screen(new_screen).await {
-                        Ok(screen) => {
-                            self.current_screen = screen;
-                            
-                            // Load activity data
-                            let github_token = self.state.get_github_token();
-                            let github_client = GitHubClient::new(github_token);
-                            
-                            if let Some(latest_activity_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::latest_activity::LatestActivityScreen>() {
-                                if let Err(e) = latest_activity_screen.load_activity_data(&github_client).await {
-                                    latest_activity_screen.set_error(format!("Failed to load activity data: {}", e));
-                                }
-                            }
-                            
-                            self.state.set_loading(false, String::new());
-                        }
-                        Err(e) => {
-                            self.state.set_error(Some(format!("Failed to create latest activity screen: {}", e)));
-                            self.state.set_loading(false, String::new());
+                    // Load activity data for Latest Activity screen
+                    let github_token = self.state.get_github_token();
+                    let github_client = GitHubClient::new(github_token);
+                    
+                    if let Some(latest_activity_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::latest_activity::LatestActivityScreen>() {
+                        if let Err(e) = latest_activity_screen.load_activity_data(&github_client).await {
+                            latest_activity_screen.set_error(format!("Failed to load activity data: {}", e));
                         }
                     }
+                    
+                    self.state.set_loading(false, String::new());
                 } else {
                     self.state.set_error(Some("No class selected".to_string()));
                 }
