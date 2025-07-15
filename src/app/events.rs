@@ -45,6 +45,7 @@ pub enum AppEvent {
     FetchGitHubActivity,
     ShowWeekView,
     ShowLatestActivity,
+    RefreshLatestActivity,
     RefreshData,
 }
 

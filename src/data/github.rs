@@ -47,9 +47,18 @@ pub struct GitHubClient {
 
 impl GitHubClient {
     pub fn new(token: Option<String>) -> Self {
+        // Try to get token from environment variable if not provided
+        let github_token = token.or_else(|| std::env::var("GITHUB_TOKEN").ok());
+        
+        // Create client with proper User-Agent header
+        let client = reqwest::Client::builder()
+            .user_agent("rusty-scv/1.0")
+            .build()
+            .expect("Failed to create HTTP client");
+        
         Self {
-            client: reqwest::Client::new(),
-            token,
+            client,
+            token: github_token,
         }
     }
 
@@ -130,7 +139,7 @@ impl GitHubClient {
 
         // Add authorization header if token is available
         if let Some(token) = &self.token {
-            request = request.header("Authorization", format!("token {}", token));
+            request = request.header("Authorization", format!("Bearer {}", token));
         }
 
         let response = request.send().await
@@ -158,7 +167,7 @@ impl GitHubClient {
             .query(&[("per_page", "1")]);
 
         if let Some(token) = &self.token {
-            request = request.header("Authorization", format!("token {}", token));
+            request = request.header("Authorization", format!("Bearer {}", token));
         }
 
         let response = request.send().await

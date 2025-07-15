@@ -64,6 +64,18 @@ impl AppState {
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
     }
+    
+    pub fn get_current_class(&self) -> Option<&Class> {
+        self.current_class.as_ref()
+    }
+    
+    pub fn set_current_class(&mut self, class: Option<Class>) {
+        self.current_class = class;
+    }
+    
+    pub fn get_github_token(&self) -> Option<String> {
+        self.github_token.clone()
+    }
 }
 
 pub struct NavigationStack {
