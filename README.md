@@ -17,8 +17,8 @@ A terminal-based application for managing student repositories and tracking GitH
 ### Option 1: Download the pre-built binary
 
 ```bash
-# Download the latest release
-curl -L https://github.com/asp2131/rusty-scv/releases/latest/download/scv-macos -o scv
+# Download the beta release
+curl -L https://github.com/asp2131/rusty-scv/releases/download/beta/scv -o scv
 
 # Make it executable
 chmod +x scv
