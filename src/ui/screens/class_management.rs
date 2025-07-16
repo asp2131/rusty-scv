@@ -11,9 +11,10 @@ use std::{future::Future, pin::Pin, time::Duration};
 
 use crate::{
     app::{AppEvent, AppState},
-    data::Class,
+    data::{Class, database::Database},
     ui::{
         animations::AnimationState,
+        components::ConfirmationDialog,
         screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },
@@ -23,6 +24,7 @@ pub struct ClassManagementScreen {
     class: Class,
     selected: usize,
     menu_items: Vec<MenuOption>,
+    confirmation_dialog: ConfirmationDialog,
 }
 
 #[derive(Clone)]
@@ -68,10 +70,17 @@ impl ClassManagementScreen {
             },
         ];
         
+        // Store class name before moving class into struct
+        let class_name = class.name.clone();
+        
         Self { 
             class, 
             selected: 0,
             menu_items,
+            confirmation_dialog: ConfirmationDialog::new(
+                "Delete Class", 
+                &format!("Are you sure you want to delete the class '{}'?\nThis action cannot be undone.", class_name)
+            ).with_yes_text("Delete").with_no_text("Cancel"),
         }
     }
 
@@ -110,6 +119,33 @@ impl Screen for ClassManagementScreen {
         key: KeyEvent,
         _state: &'a AppState,
     ) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>> {
+        // First check if the confirmation dialog is visible and handle its events
+        if self.confirmation_dialog.is_visible() {
+            if let Some(confirmed) = self.confirmation_dialog.handle_key_event(key) {
+                if confirmed {
+                    // User confirmed deletion
+                    return Box::pin(async move {
+                        let db = Database::init().await?;
+                        let deleted = db.delete_class(self.class.id).await?;
+                        
+                        if deleted {
+                            // Navigate back to class selection screen
+                            return Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::ClassSelection))));
+                        } else {
+                            // Show error message
+                            return Ok(Some(AppEvent::ShowError("Failed to delete class".to_string())));
+                        }
+                    });
+                } else {
+                    // User cancelled deletion
+                    return Box::pin(async move { Ok(None) });
+                }
+            }
+            // If the dialog is visible but no definitive action was taken, don't process other keys
+            return Box::pin(async move { Ok(None) });
+        }
+        
+        // Normal key handling when dialog is not visible
         let result = match key.code {
             KeyCode::Up | KeyCode::Char('k') => {
                 self.select_previous();
@@ -124,8 +160,11 @@ impl Screen for ClassManagementScreen {
                     match selected.title.as_str() {
                         "Manage Students" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
                         "Manage Repositories" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::RepositoryManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
-                        "View GitHub Activity" => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
-                        "Delete Class" => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
+                        "Delete Class" => {
+                            // Show confirmation dialog
+                            self.confirmation_dialog.show();
+                            Ok(None)
+                        },
                         "Back" => Ok(Some(AppEvent::GoBack)),
                         _ => Ok(None),
                     }
@@ -133,10 +172,21 @@ impl Screen for ClassManagementScreen {
                     Ok(None)
                 }
             }
-            KeyCode::Char('s') => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
-            KeyCode::Char('r') => Ok(Some(AppEvent::ShowError("Repository management not implemented yet".to_string()))),
-            KeyCode::Char('a') => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
-            KeyCode::Char('d') => Ok(Some(AppEvent::ShowError("Delete class not implemented yet".to_string()))),
+            KeyCode::Char(c) => {
+                // Handle hotkeys
+                match c {
+                    's' => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::StudentManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
+                    'r' => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::RepositoryManagement).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
+                    'a' => Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::GitHubActivity).with_context(crate::ui::screens::ScreenContext::Class(self.class.clone()))))),
+                    'd' => {
+                        // Show confirmation dialog for delete
+                        self.confirmation_dialog.show();
+                        Ok(None)
+                    },
+                    'b' => Ok(Some(AppEvent::GoBack)),
+                    _ => Ok(None),
+                }
+            }
             KeyCode::Char('b') | KeyCode::Esc => Ok(Some(AppEvent::GoBack)),
             _ => Ok(None),
         };
@@ -249,5 +299,8 @@ impl Screen for ClassManagementScreen {
             .block(Block::default().borders(Borders::TOP))
             .style(Style::default().fg(theme.text_secondary));
         frame.render_widget(help, chunks[2]);
+        
+        // Render confirmation dialog if visible
+        self.confirmation_dialog.render(frame, area, theme);
     }
 }
