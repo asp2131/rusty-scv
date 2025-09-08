@@ -561,8 +561,21 @@ impl App {
                 _ => {}
             }
         } else {
-            // If there's nowhere to go back to, exit the app
-            self.should_quit = true;
+            // If there's nowhere to go back to, navigate to the main menu instead of exiting
+            self.current_screen = crate::ui::screens::create_screen(ScreenType::new(ScreenTypeVariant::ClassSelection)).await?;
+            self.animation_state.trigger_transition();
+            
+            // Refresh classes when going back to main menu
+            match self.state.database.get_classes().await {
+                Ok(classes) => {
+                    if let Some(class_screen) = self.current_screen.as_any_mut().downcast_mut::<crate::ui::screens::class_selection::ClassSelectionScreen>() {
+                        class_screen.set_classes(classes);
+                    }
+                }
+                Err(e) => {
+                    self.state.set_error(Some(format!("Failed to refresh classes: {}", e)));
+                }
+            }
         }
         Ok(())
     }
