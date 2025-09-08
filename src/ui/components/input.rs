@@ -17,6 +17,7 @@ pub struct AnimatedInput {
     focused: bool,
     cursor_position: usize,
     cursor_blink: f32,
+    scroll_offset: usize,
 }
 
 impl AnimatedInput {
@@ -28,6 +29,7 @@ impl AnimatedInput {
             focused: false,
             cursor_position: 0,
             cursor_blink: 0.0,
+            scroll_offset: 0,
         }
     }
     
@@ -61,24 +63,60 @@ impl AnimatedInput {
     
     pub fn set_value(&mut self, value: String) {
         self.value = value;
-        self.cursor_position = self.value.len();
+        self.cursor_position = self.value.chars().count();
+        self.scroll_offset = 0;
+    }
+    
+    fn ensure_cursor_visible(&mut self, available_width: usize) {
+        if available_width == 0 {
+            return;
+        }
+        
+        let char_count = self.value.chars().count();
+        
+        // Ensure cursor_position is valid
+        if self.cursor_position > char_count {
+            self.cursor_position = char_count;
+        }
+        
+        // Adjust scroll to keep cursor visible
+        if self.cursor_position < self.scroll_offset {
+            self.scroll_offset = self.cursor_position;
+        } else if self.cursor_position >= self.scroll_offset + available_width {
+            self.scroll_offset = self.cursor_position.saturating_sub(available_width - 1);
+        }
     }
     
     pub fn handle_key_event(&mut self, key: KeyEvent) {
+        let char_count = self.value.chars().count();
+        
         match key.code {
             KeyCode::Char(c) => {
-                self.value.insert(self.cursor_position, c);
+                // Insert character at cursor position using char indices
+                let char_indices: Vec<_> = self.value.char_indices().collect();
+                let byte_pos = if self.cursor_position >= char_indices.len() {
+                    self.value.len()
+                } else {
+                    char_indices[self.cursor_position].0
+                };
+                self.value.insert(byte_pos, c);
                 self.cursor_position += 1;
             },
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
                     self.cursor_position -= 1;
-                    self.value.remove(self.cursor_position);
+                    let char_indices: Vec<_> = self.value.char_indices().collect();
+                    if self.cursor_position < char_indices.len() {
+                        let byte_pos = char_indices[self.cursor_position].0;
+                        self.value.remove(byte_pos);
+                    }
                 }
             },
             KeyCode::Delete => {
-                if self.cursor_position < self.value.len() {
-                    self.value.remove(self.cursor_position);
+                let char_indices: Vec<_> = self.value.char_indices().collect();
+                if self.cursor_position < char_indices.len() {
+                    let byte_pos = char_indices[self.cursor_position].0;
+                    self.value.remove(byte_pos);
                 }
             },
             KeyCode::Left => {
@@ -87,7 +125,7 @@ impl AnimatedInput {
                 }
             },
             KeyCode::Right => {
-                if self.cursor_position < self.value.len() {
+                if self.cursor_position < char_count {
                     self.cursor_position += 1;
                 }
             },
@@ -95,7 +133,7 @@ impl AnimatedInput {
                 self.cursor_position = 0;
             },
             KeyCode::End => {
-                self.cursor_position = self.value.len();
+                self.cursor_position = char_count;
             },
             _ => {}
         }
@@ -127,36 +165,71 @@ impl Widget for &AnimatedInput {
         let inner_area = block.inner(area);
         block.render(area, buf);
         
-        // Prepare the display text
-        let display_text = if self.value.is_empty() && !self.placeholder.is_empty() {
-            self.placeholder.as_str()
-        } else {
-            self.value.as_str()
+        let available_width = inner_area.width as usize;
+        
+        // Create a mutable copy to adjust scrolling
+        let mut input_copy = AnimatedInput {
+            value: self.value.clone(),
+            placeholder: self.placeholder.clone(),
+            title: self.title.clone(),
+            focused: self.focused,
+            cursor_position: self.cursor_position,
+            cursor_blink: self.cursor_blink,
+            scroll_offset: self.scroll_offset,
         };
         
-        let text_style = if self.value.is_empty() && !self.placeholder.is_empty() {
+        input_copy.ensure_cursor_visible(available_width);
+        
+        // Get the visible portion of the text
+        let chars: Vec<char> = input_copy.value.chars().collect();
+        let end_pos = std::cmp::min(
+            input_copy.scroll_offset + available_width,
+            chars.len()
+        );
+        
+        let visible_text: String = if input_copy.scroll_offset < chars.len() {
+            chars[input_copy.scroll_offset..end_pos].iter().collect()
+        } else {
+            String::new()
+        };
+        
+        // Prepare the display text
+        let display_text = if input_copy.value.is_empty() && !input_copy.placeholder.is_empty() {
+            input_copy.placeholder.as_str()
+        } else {
+            &visible_text
+        };
+        
+        let text_style = if input_copy.value.is_empty() && !input_copy.placeholder.is_empty() {
             theme.secondary_text()
         } else {
             Style::default().fg(Color::White)
         };
         
         // Add cursor if focused
-        let line = if self.focused {
-            let cursor_visible = self.cursor_blink.sin() > 0.0;
+        let line = if input_copy.focused && !input_copy.value.is_empty() {
+            let cursor_visible = input_copy.cursor_blink.sin() > 0.0;
             let white_style = Style::default().fg(Color::White);
-            if self.cursor_position >= self.value.len() {
-                // Cursor at end
+            
+            // Calculate cursor position relative to visible text
+            let visible_cursor_pos = input_copy.cursor_position.saturating_sub(input_copy.scroll_offset);
+            
+            if visible_cursor_pos >= visible_text.chars().count() {
+                // Cursor at end of visible text
                 if cursor_visible {
                     Line::from(vec![
-                        Span::styled(&self.value, white_style),
+                        Span::styled(&visible_text, white_style),
                         Span::styled("█", Style::default().fg(Color::Cyan)),
                     ])
                 } else {
-                    Line::from(Span::styled(&self.value, white_style))
+                    Line::from(Span::styled(&visible_text, white_style))
                 }
             } else {
-                // Cursor in middle
-                let (before, after) = self.value.split_at(self.cursor_position);
+                // Cursor in middle of visible text
+                let visible_chars: Vec<char> = visible_text.chars().collect();
+                let before: String = visible_chars[..visible_cursor_pos].iter().collect();
+                let after: String = visible_chars[visible_cursor_pos..].iter().collect();
+                
                 if cursor_visible {
                     Line::from(vec![
                         Span::styled(before, white_style),
@@ -164,8 +237,19 @@ impl Widget for &AnimatedInput {
                         Span::styled(after, white_style),
                     ])
                 } else {
-                    Line::from(Span::styled(&self.value, white_style))
+                    Line::from(Span::styled(&visible_text, white_style))
                 }
+            }
+        } else if input_copy.focused && input_copy.value.is_empty() {
+            // Show cursor for empty focused input
+            let cursor_visible = input_copy.cursor_blink.sin() > 0.0;
+            if cursor_visible {
+                Line::from(vec![
+                    Span::styled(&input_copy.placeholder, theme.secondary_text()),
+                    Span::styled("█", Style::default().fg(Color::Cyan)),
+                ])
+            } else {
+                Line::from(Span::styled(&input_copy.placeholder, theme.secondary_text()))
             }
         } else {
             Line::from(Span::styled(display_text, text_style))

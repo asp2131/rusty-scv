@@ -1,30 +1,37 @@
 use anyhow::Result;
 use crossterm::event::{KeyEvent, KeyCode};
 use ratatui::{
-    layout::{Alignment, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
-use std::pin::Pin;
+use std::{pin::Pin, time::Duration};
 use tokio::pin;
 
 use crate::{
     app::AppEvent,
     data::{Class, Database},
-    ui::themes::Theme,
+    ui::{
+        components::input::AnimatedInput,
+        themes::Theme,
+    },
 };
 
 pub struct AddStudentsScreen {
     class: Class,
-    input_text: String,
+    input: AnimatedInput,
 }
 
 impl AddStudentsScreen {
     pub fn new(class: Class) -> Self {
+        let mut input = AnimatedInput::new("GitHub Usernames");
+        input.set_placeholder("Enter GitHub usernames separated by commas (e.g., user1, user2, user3)");
+        input.focus();
+        
         Self {
             class,
-            input_text: String::new(),
+            input,
         }
     }
 }
@@ -39,27 +46,21 @@ impl super::Screen for AddStudentsScreen {
             .with_context(super::ScreenContext::Class(self.class.clone()))
     }
 
-    fn update<'a>(&'a mut self, _delta_time: std::time::Duration, _state: &'a mut crate::app::AppState) -> Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn update<'a>(&'a mut self, delta_time: std::time::Duration, _state: &'a mut crate::app::AppState) -> Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        self.input.update(delta_time);
         Box::pin(async move { Ok(()) })
     }
 
     fn handle_key_event(&mut self, key: KeyEvent, state: &crate::app::AppState) -> Pin<Box<dyn std::future::Future<Output = Result<Option<AppEvent>>> + Send + '_>> {
         match key.code {
             KeyCode::Esc => Box::pin(async move { Ok(Some(AppEvent::GoBack)) }),
-            KeyCode::Char(c) => {
-                self.input_text.push(c);
-                Box::pin(async move { Ok(None) })
-            }
-            KeyCode::Backspace => {
-                self.input_text.pop();
-                Box::pin(async move { Ok(None) })
-            }
             KeyCode::Enter => {
-                if self.input_text.trim().is_empty() {
+                let input_text = self.input.value().trim();
+                if input_text.is_empty() {
                     return Box::pin(async move { Ok(None) });
                 }
                 
-                let students = self.input_text.split(',')
+                let students = input_text.split(',')
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
                     .map(|name| (self.class.id, name.to_string()))
@@ -70,7 +71,6 @@ impl super::Screen for AddStudentsScreen {
                 }
                 
                 let db = state.database.clone();
-                let input_text = std::mem::take(&mut self.input_text);
                 
                 Box::pin(async move {
                     // Add each student to database
@@ -84,7 +84,11 @@ impl super::Screen for AddStudentsScreen {
                     Ok(Some(AppEvent::GoBack))
                 })
             }
-            _ => Box::pin(async move { Ok(None) }),
+            _ => {
+                // Handle all other input through the AnimatedInput component
+                self.input.handle_key_event(key);
+                Box::pin(async move { Ok(None) })
+            }
         }
     }
 
@@ -106,41 +110,37 @@ impl super::Screen for AddStudentsScreen {
         let inner_area = block.inner(area);
         frame.render_widget(block, area);
 
+        // Create layout for the form
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(2), // Instruction
+                Constraint::Length(3), // Input field
+                Constraint::Min(1),    // Spacing
+                Constraint::Length(2), // Help text
+            ])
+            .split(inner_area);
+
+        // Render instruction
         let instruction = Paragraph::new(vec![Line::from(Span::styled(
-            "Enter student names (comma separated):", 
+            "Enter GitHub usernames separated by commas:", 
             Style::default().fg(theme.text)
-        ))]);
+        ))])
+        .alignment(Alignment::Center);
+        frame.render_widget(instruction, chunks[0]);
 
-        let input = Paragraph::new(self.input_text.as_str())
-            .style(Style::default().fg(theme.text))
-            .block(Block::default().borders(Borders::ALL).title("Input"));
+        // Render the animated input component
+        frame.render_widget(&self.input, chunks[1]);
 
-        frame.render_widget(instruction, Rect {
-            x: inner_area.x,
-            y: inner_area.y,
-            width: inner_area.width,
-            height: 1,
-        });
-        frame.render_widget(input, Rect {
-            x: inner_area.x,
-            y: inner_area.y + 2,
-            width: inner_area.width,
-            height: 3,
-        });
-
+        // Render help text
         let help_text = Paragraph::new(vec![Line::from(vec![
-            Span::styled("esc back • ", Style::default().fg(theme.text_secondary)),
-            Span::styled("enter submit", Style::default().fg(theme.text_secondary)),
+            Span::styled("Esc", Style::default().fg(theme.warning)),
+            Span::styled(": Back  ", Style::default().fg(theme.text_secondary)),
+            Span::styled("Enter", Style::default().fg(theme.success)),
+            Span::styled(": Add Students", Style::default().fg(theme.text_secondary)),
         ])])
         .alignment(Alignment::Center);
 
-        let help_area = Rect {
-            x: inner_area.x,
-            y: inner_area.y + inner_area.height.saturating_sub(1),
-            width: inner_area.width,
-            height: 1,
-        };
-
-        frame.render_widget(help_text, help_area);
+        frame.render_widget(help_text, chunks[3]);
     }
 }
