@@ -60,27 +60,49 @@ impl super::Screen for AddStudentsScreen {
                     return Box::pin(async move { Ok(None) });
                 }
                 
-                let students = input_text.split(',')
+                // Parse and validate usernames
+                let usernames: Vec<String> = input_text.split(',')
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty())
-                    .map(|name| (self.class.id, name.to_string()))
-                    .collect::<Vec<_>>();
+                    .filter(|s| s.len() <= 39) // GitHub username max length
+                    .filter(|s| s.chars().all(|c| c.is_alphanumeric() || c == '-'))
+                    .map(|s| s.to_string())
+                    .collect();
                 
-                if students.is_empty() {
+                if usernames.is_empty() {
                     return Box::pin(async move { Ok(None) });
                 }
                 
+                let class_id = self.class.id;
                 let db = state.database.clone();
                 
                 Box::pin(async move {
-                    // Add each student to database
-                    for (class_id, username) in students {
-                        if let Err(e) = db.add_student(class_id, &username).await {
-                            // TODO: Show error to user
-                            log::error!("Failed to add student {}: {}", username, e);
+                    let mut successful_adds = 0;
+                    let mut failed_adds = 0;
+                    
+                    // Process students in smaller batches to avoid overwhelming the database
+                    for batch in usernames.chunks(10) {
+                        for username in batch {
+                            match db.add_student(class_id, username).await {
+                                Ok(_) => {
+                                    successful_adds += 1;
+                                    log::info!("Successfully added student: {}", username);
+                                }
+                                Err(e) => {
+                                    failed_adds += 1;
+                                    log::warn!("Failed to add student {}: {}", username, e);
+                                    // Continue processing other students instead of failing completely
+                                }
+                            }
+                        }
+                        
+                        // Small delay between batches to prevent overwhelming the system
+                        if usernames.len() > 10 {
+                            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
                         }
                     }
                     
+                    log::info!("Bulk add completed: {} successful, {} failed", successful_adds, failed_adds);
                     Ok(Some(AppEvent::GoBack))
                 })
             }

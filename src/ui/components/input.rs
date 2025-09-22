@@ -67,6 +67,29 @@ impl AnimatedInput {
         self.scroll_offset = 0;
     }
     
+    pub fn insert_text(&mut self, text: &str) {
+        // Optimized bulk text insertion
+        let char_count = self.value.chars().count();
+        
+        if self.cursor_position >= char_count {
+            // Append to end - most efficient for paste operations
+            self.value.push_str(text);
+        } else {
+            // Insert at specific position
+            let char_indices: Vec<_> = self.value.char_indices().collect();
+            let byte_pos = if self.cursor_position >= char_indices.len() {
+                self.value.len()
+            } else {
+                char_indices[self.cursor_position].0
+            };
+            self.value.insert_str(byte_pos, text);
+        }
+        
+        self.cursor_position += text.chars().count();
+        // Reset scroll offset for bulk operations to ensure proper display
+        self.scroll_offset = 0;
+    }
+    
     fn ensure_cursor_visible(&mut self, available_width: usize) {
         if available_width == 0 {
             return;
@@ -92,15 +115,25 @@ impl AnimatedInput {
         
         match key.code {
             KeyCode::Char(c) => {
-                // Insert character at cursor position using char indices
-                let char_indices: Vec<_> = self.value.char_indices().collect();
-                let byte_pos = if self.cursor_position >= char_indices.len() {
-                    self.value.len()
+                // Optimized character insertion - avoid recreating char_indices for every character
+                if self.cursor_position >= char_count {
+                    // Append to end - most common case for paste operations
+                    self.value.push(c);
                 } else {
-                    char_indices[self.cursor_position].0
-                };
-                self.value.insert(byte_pos, c);
+                    // Insert at specific position - only collect indices when needed
+                    let char_indices: Vec<_> = self.value.char_indices().collect();
+                    let byte_pos = if self.cursor_position >= char_indices.len() {
+                        self.value.len()
+                    } else {
+                        char_indices[self.cursor_position].0
+                    };
+                    self.value.insert(byte_pos, c);
+                }
                 self.cursor_position += 1;
+                // Reset scroll offset when typing to ensure proper display
+                if self.cursor_position == self.value.chars().count() {
+                    self.scroll_offset = 0;
+                }
             },
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
