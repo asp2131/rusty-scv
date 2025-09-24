@@ -14,9 +14,36 @@ A terminal-based application for managing student repositories and tracking GitH
 
 ## Installation
 
-### Option 1: Download the pre-built binary
+### For GitHub Codespaces (Recommended)
 
-**Note**: The pre-built binary may not work in GitHub Codespaces due to architecture differences. If you get an "Exec format error", please use Option 2 (Build from source) instead.
+**⚠️ Important**: The pre-built binary will not work in GitHub Codespaces due to architecture differences. You must build from source.
+
+```bash
+# Clone the repository (if not already cloned)
+git clone https://github.com/asp2131/rusty-scv.git
+cd rusty-scv
+
+# Install Rust if not already installed
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Build the application
+cargo build --release
+
+# Copy to local bin directory
+mkdir -p ~/.local/bin
+cp target/release/scv ~/.local/bin/
+
+# Add to PATH (add this to your ~/.bashrc for persistence)
+export PATH="$HOME/.local/bin:$PATH"
+
+# Run the application
+scv
+```
+
+### For Local Systems
+
+#### Option 1: Download the pre-built binary
 
 ```bash
 # Download the release
@@ -25,17 +52,11 @@ curl -L https://github.com/asp2131/rusty-scv/releases/download/1.0.1/scv -o scv
 # Make it executable
 chmod +x scv
 
-# Move to a directory in your PATH (optional)
-# For local systems:
+# Move to a directory in your PATH
 sudo mv scv /usr/local/bin/
-
-# For GitHub Codespaces (if sudo doesn't work):
-mkdir -p ~/.local/bin
-mv scv ~/.local/bin/
-export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Option 2: Build from source (Recommended for GitHub Codespaces)
+#### Option 2: Build from source
 
 #### Prerequisites
 
@@ -108,6 +129,45 @@ cargo build
 - Go back with Esc or q
 - Refresh data with r
 - See on-screen help for additional commands
+
+## Troubleshooting
+
+### "Exec format error" when running the binary
+
+This error occurs when trying to run a binary compiled for a different architecture. This is common in:
+- GitHub Codespaces (uses Linux x86_64, but the binary might be compiled for a different target)
+- Docker containers with different architectures
+- Cross-platform usage (e.g., trying to run a macOS binary on Linux)
+
+**Solution**: Build from source using the instructions above for your specific environment.
+
+### Rust not found
+
+If you get "cargo: command not found" or "rustc: command not found":
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Verify installation
+rustc --version
+cargo --version
+```
+
+### Permission denied when moving to /usr/local/bin
+
+If you don't have sudo access (common in some environments):
+
+```bash
+# Use local bin directory instead
+mkdir -p ~/.local/bin
+cp target/release/scv ~/.local/bin/
+export PATH="$HOME/.local/bin:$PATH"
+
+# Make the PATH change permanent
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+```
 
 ## Configuration
 
