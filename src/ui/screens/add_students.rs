@@ -4,19 +4,11 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph},
 };
-use std::{pin::Pin, time::Duration};
-use tokio::pin;
+use std::pin::Pin;
 
-use crate::{
-    app::AppEvent,
-    data::{Class, Database},
-    ui::{
-        components::input::AnimatedInput,
-        themes::Theme,
-    },
-};
+use crate::{app::AppEvent, data::Class, ui::{components::input::AnimatedInput, themes::Theme}};
 
 pub struct AddStudentsScreen {
     class: Class,
@@ -118,7 +110,7 @@ impl super::Screen for AddStudentsScreen {
         &mut self, 
         frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, 
         area: Rect, 
-        state: &crate::app::AppState, 
+        _state: &crate::app::AppState, 
         _animation_state: &crate::ui::animations::AnimationState, 
         theme: &Theme
     ) {
@@ -152,7 +144,7 @@ impl super::Screen for AddStudentsScreen {
         frame.render_widget(instruction, chunks[0]);
 
         // Render the animated input component
-        frame.render_widget(&self.input, chunks[1]);
+        frame.render_widget(&mut self.input, chunks[1]);
 
         // Render help text
         let help_text = Paragraph::new(vec![Line::from(vec![

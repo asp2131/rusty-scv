@@ -1,7 +1,6 @@
 use anyhow::Result;
 use crossterm::event::{KeyEvent, KeyCode};
 use ratatui::{
-    Frame, backend::Backend, 
     layout::{Alignment, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
@@ -61,7 +60,7 @@ impl Screen for StudentManagementScreen {
             .with_context(ScreenContext::Class(self.class.clone()))
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent, state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + '_>> {
+    fn handle_key_event(&mut self, key: KeyEvent, _state: &AppState) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + '_>> {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Box::pin(async move { Ok(Some(AppEvent::GoBack)) }),
             KeyCode::Char('k') | KeyCode::Up => {
@@ -102,7 +101,7 @@ impl Screen for StudentManagementScreen {
         &mut self, 
         frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, 
         area: Rect, 
-        state: &AppState, 
+        _state: &AppState, 
         _animation_state: &AnimationState, 
         theme: &Theme
     ) {

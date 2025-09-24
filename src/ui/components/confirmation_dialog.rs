@@ -90,11 +90,15 @@ impl ConfirmationDialog {
         frame.render_widget(Clear, popup_area);
         
         // Create the block for the dialog
+        let title = Line::from(Span::styled(
+            self.title.clone(),
+            Style::default().fg(theme.warning).add_modifier(Modifier::BOLD)
+        ));
         let block = Block::default()
-            .title(self.title.clone())
+            .title(title)
+            .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.warning))
-            .title_style(Style::default().fg(theme.warning).add_modifier(Modifier::BOLD));
+            .border_style(Style::default().fg(theme.warning));
             
         let inner_area = block.inner(popup_area);
         frame.render_widget(block, popup_area);

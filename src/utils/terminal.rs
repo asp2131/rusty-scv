@@ -3,7 +3,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::io::{self, stdout};
+use std::io::{stdout};
 
 pub fn setup_terminal() -> Result<()> {
     enable_raw_mode()?;

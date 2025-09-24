@@ -1,9 +1,9 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Gauge, Paragraph, Widget, Wrap},
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Gauge, Paragraph, Widget, Wrap},
 };
 use std::time::Duration;
 
@@ -36,7 +36,7 @@ pub struct LoadingWidget {
 }
 
 impl LoadingWidget {
-    pub fn new(message: &str, animation_state: &AnimationState, theme: &Theme) -> Self {
+    pub fn new(message: &str, _animation_state: &AnimationState, theme: &Theme) -> Self {
         Self {
             message: message.to_string(),
             loading_type: LoadingType::Spinner,
@@ -95,11 +95,14 @@ impl LoadingWidget {
 impl Widget for LoadingWidget {
     fn render(self, area: Rect, buf: &mut Buffer) {
         // Create the loading container
+        let title = Line::from(Span::styled(
+            "Loading",
+            self.theme.primary_text()
+        ));
         let block = Block::default()
-            .title("Loading")
+            .title(title)
             .borders(Borders::ALL)
-            .border_style(self.theme.border_focused_style())
-            .title_style(self.theme.primary_text());
+            .border_style(self.theme.border_focused_style());
 
         let inner_area = block.inner(area);
         block.render(area, buf);
@@ -148,7 +151,6 @@ impl LoadingWidget {
         // Use static color for spinner
         let color = self.theme.primary;
         
-        let spinner_text = format!("  {}  ", spinner_frame);
         let line = Line::from(vec![
             Span::styled("  ", Style::default()),
             Span::styled(spinner_frame, Style::default().fg(color).add_modifier(Modifier::BOLD)),

@@ -275,47 +275,6 @@ impl Themes {
     }
 }
 
-/// Gradient utility for creating smooth color transitions
-pub struct ColorGradient {
-    start: Color,
-    end: Color,
-    steps: usize,
-}
-
-impl ColorGradient {
-    pub fn new(start: Color, end: Color, steps: usize) -> Self {
-        Self { start, end, steps }
-    }
-
-    pub fn color_at(&self, step: usize) -> Color {
-        if step >= self.steps {
-            return self.end;
-        }
-
-        let t = step as f32 / (self.steps - 1) as f32;
-        interpolate_color(self.start, self.end, t)
-    }
-
-    pub fn colors(&self) -> Vec<Color> {
-        (0..self.steps)
-            .map(|i| self.color_at(i))
-            .collect()
-    }
-}
-
-/// Interpolate between two colors
-fn interpolate_color(start: Color, end: Color, t: f32) -> Color {
-    match (start, end) {
-        (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
-            let r = (r1 as f32 + (r2 as f32 - r1 as f32) * t) as u8;
-            let g = (g1 as f32 + (g2 as f32 - g1 as f32) * t) as u8;
-            let b = (b1 as f32 + (b2 as f32 - b1 as f32) * t) as u8;
-            Color::Rgb(r, g, b)
-        },
-        _ => if t < 0.5 { start } else { end },
-    }
-}
-
 /// ASCII art and decorative elements
 pub struct AsciiArt;
 

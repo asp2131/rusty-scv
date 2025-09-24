@@ -3,8 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Row, Table, TableState},
+    widgets::{Block, Borders, Paragraph, Row, Table, TableState},
     Frame,
 };
 use std::{collections::HashMap, future::Future, pin::Pin, time::Duration};

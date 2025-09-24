@@ -2,7 +2,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
@@ -12,7 +12,6 @@ use std::{future::Future, pin::Pin, time::Duration};
 use crate::{
     app::{AppEvent, AppState},
     data::{Class, Student},
-    git::GitManager,
     ui::{
         animations::AnimationState,
         components::menu::{AnimatedMenu, MenuBuilder, MenuItem},
@@ -74,7 +73,7 @@ impl Screen for RepoManagementScreen {
     fn handle_key_event<'a>(
         &'a mut self,
         key: KeyEvent,
-        state: &'a AppState,
+        _state: &'a AppState,
     ) -> Pin<Box<dyn Future<Output = Result<Option<AppEvent>>> + Send + 'a>> {
         let result = if self.show_main_menu {
             // Handle main menu
@@ -193,7 +192,7 @@ impl Screen for RepoManagementScreen {
         frame: &mut Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
         area: Rect,
         state: &AppState,
-        animation_state: &AnimationState,
+        _animation_state: &AnimationState,
         theme: &Theme,
     ) {
         if self.show_main_menu || self.show_actions {

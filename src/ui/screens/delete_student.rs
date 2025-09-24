@@ -6,14 +6,9 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
-use tokio::pin;
 use std::pin::Pin;
 
-use crate::{
-    app::AppEvent,
-    data::{Class, Database, Student},
-    ui::themes::Theme,
-};
+use crate::{app::AppEvent, data::{Class, Student}, ui::themes::Theme, };
 
 pub struct DeleteStudentScreen {
     class: Class,
@@ -75,7 +70,7 @@ impl super::Screen for DeleteStudentScreen {
         &mut self, 
         frame: &mut ratatui::Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>, 
         area: Rect, 
-        state: &crate::app::AppState, 
+        _state: &crate::app::AppState, 
         _animation_state: &crate::ui::animations::AnimationState, 
         theme: &Theme
     ) {

@@ -4,9 +4,9 @@ use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Widget},
-    Frame, backend::Backend,
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
+    Frame,
 };
 use std::{time::Duration, future::Future, pin::Pin};
 
@@ -265,7 +265,7 @@ impl Screen for MainMenuScreen {
         frame: &mut Frame<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
         area: Rect,
         _state: &AppState,
-        animation_state: &AnimationState,
+        _animation_state: &AnimationState,
         theme: &Theme,
     ) {
         // Draw background particles
@@ -305,11 +305,6 @@ impl Screen for MainMenuScreen {
             crate::ui::layout::center_rect(40, 20, inner_area)
         };
         
-        // Render menu with title
-        let menu_block = Block::default()
-            .borders(Borders::NONE)
-            .title_alignment(Alignment::Center);
-            
         let menu_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([

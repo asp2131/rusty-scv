@@ -65,8 +65,8 @@ impl GitHubClient {
     pub async fn get_week_activity(&self, github_username: &str) -> Result<WeekActivity> {
         let weekdays = get_past_weekdays(5);
         let mut daily_commits = HashMap::new();
-        let mut total_commits = 0;
         let mut latest_commit = None;
+        let total_commits;
 
         // Initialize all weekdays to false
         for weekday in &weekdays {

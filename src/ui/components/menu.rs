@@ -1,16 +1,14 @@
 use ratatui::{
     buffer::Buffer,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    symbols,
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
+    layout::{Alignment, Rect},
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 use std::time::Duration;
 
 use crate::ui::{
-    animations::{AnimationState, EasingFunction},
-    themes::Theme,
+    animations::AnimationState,
 };
 
 /// Menu item with animation support

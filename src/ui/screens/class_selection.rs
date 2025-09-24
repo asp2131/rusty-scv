@@ -6,7 +6,6 @@ use ratatui::{
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    backend::Backend,
 };
 use std::{
     future::Future,
@@ -20,8 +19,7 @@ use crate::{
     ui::{
         animations::AnimationState,
         components::{
-            loading::LoadingWidget,
-            menu::{AnimatedMenu, MenuBuilder, MenuItem, MenuPresets},
+            menu::{AnimatedMenu, MenuBuilder, MenuItem},
         },
         screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
@@ -155,6 +153,12 @@ impl Screen for ClassSelectionScreen {
                     });
                 } else if let Some(selected_item) = self.menu.selected_item() {
                     // Find the selected class
+                    if selected_item.title == "Create New Class" {
+                        return Box::pin(async {
+                            Ok(Some(AppEvent::NavigateToScreen(ScreenType::new(ScreenTypeVariant::CreateClass))))
+                        });
+                    }
+
                     if let Some(class) = self.classes.iter().find(|c| c.name == selected_item.title) {
                         return Box::pin(async { 
                             Ok(Some(AppEvent::SelectClass(class.clone()))) 

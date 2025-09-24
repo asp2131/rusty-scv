@@ -14,7 +14,7 @@ use crate::{ui::screens::ScreenContext,
     data::Class,
     ui::{
         animations::AnimationState,
-        components::menu::{AnimatedMenu, MenuBuilder, MenuItem, MenuPresets},
+        components::menu::{AnimatedMenu, MenuBuilder, MenuItem},
         screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },

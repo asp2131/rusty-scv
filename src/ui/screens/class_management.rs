@@ -14,7 +14,7 @@ use crate::{
     data::{Class, database::Database},
     ui::{
         animations::AnimationState,
-        components::ConfirmationDialog,
+        components::confirmation_dialog::ConfirmationDialog,
         screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },

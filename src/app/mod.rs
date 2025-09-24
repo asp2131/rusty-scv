@@ -199,9 +199,6 @@ impl App {
                             let state = &self.state;
                             let db = &state.database;
                             
-                            // Clone what we need for the async block
-                            let class_name_clone = class_name.to_string();
-                            
                             // Schedule the database operation
                             tokio::spawn(async move {
                                 // This will be handled in the next frame
@@ -639,11 +636,15 @@ impl App {
             let title = if is_success { "Success" } else { "Error" };
             let border_color = if is_success { theme.success } else { theme.error };
             
+            let title = ratatui::text::Line::from(ratatui::text::Span::styled(
+                title,
+                Style::default().fg(border_color).add_modifier(Modifier::BOLD)
+            ));
             let error_block = Block::default()
                 .title(title)
+                .title_alignment(ratatui::layout::Alignment::Center)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color))
-                .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD));
+                .border_style(Style::default().fg(border_color));
             
             let inner_area = error_block.inner(error_area);
             frame.render_widget(error_block, error_area);

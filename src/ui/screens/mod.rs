@@ -12,7 +12,7 @@ pub mod latest_activity;
 
 use anyhow::Result;
 use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::{layout::Rect};
 use std::{future::Future, pin::Pin, time::Duration};
 
 use crate::{

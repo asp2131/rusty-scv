@@ -1,14 +1,14 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
 use crossterm::event::{KeyCode, KeyEvent};
 use std::time::Duration;
 
-use crate::ui::{animations::AnimationState, themes::Theme};
+
 
 pub struct AnimatedInput {
     value: String,
@@ -86,8 +86,6 @@ impl AnimatedInput {
         }
         
         self.cursor_position += text.chars().count();
-        // Reset scroll offset for bulk operations to ensure proper display
-        self.scroll_offset = 0;
     }
     
     fn ensure_cursor_visible(&mut self, available_width: usize) {
@@ -130,10 +128,6 @@ impl AnimatedInput {
                     self.value.insert(byte_pos, c);
                 }
                 self.cursor_position += 1;
-                // Reset scroll offset when typing to ensure proper display
-                if self.cursor_position == self.value.chars().count() {
-                    self.scroll_offset = 0;
-                }
             },
             KeyCode::Backspace => {
                 if self.cursor_position > 0 {
@@ -179,9 +173,11 @@ impl AnimatedInput {
     }
 }
 
-impl Widget for &AnimatedInput {
+impl Widget for &mut AnimatedInput {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let theme = &crate::ui::themes::THEMES.neon_night; // TODO: Get from context
+        // Theme should be passed from the parent context
+        // For now, we'll use the default theme but this should be improved
+        let theme = &crate::ui::themes::THEMES.neon_night;
         
         let border_style = if self.focused {
             theme.border_focused_style()
@@ -189,102 +185,113 @@ impl Widget for &AnimatedInput {
             theme.border_style()
         };
         
+        let title = Line::from(Span::styled(
+            self.title.as_str(),
+            theme.primary_text()
+        ));
         let block = Block::default()
-            .title(self.title.as_str())
+            .title(title)
             .borders(Borders::ALL)
-            .border_style(border_style)
-            .title_style(theme.primary_text());
+            .border_style(border_style);
         
         let inner_area = block.inner(area);
         block.render(area, buf);
         
         let available_width = inner_area.width as usize;
+        if available_width < 2 {
+            return;
+        }
         
-        // Create a mutable copy to adjust scrolling
-        let mut input_copy = AnimatedInput {
-            value: self.value.clone(),
-            placeholder: self.placeholder.clone(),
-            title: self.title.clone(),
-            focused: self.focused,
-            cursor_position: self.cursor_position,
-            cursor_blink: self.cursor_blink,
-            scroll_offset: self.scroll_offset,
-        };
-        
-        input_copy.ensure_cursor_visible(available_width);
+        self.ensure_cursor_visible(available_width);
         
         // Get the visible portion of the text
-        let chars: Vec<char> = input_copy.value.chars().collect();
+        let chars: Vec<char> = self.value.chars().collect();
         let end_pos = std::cmp::min(
-            input_copy.scroll_offset + available_width,
+            self.scroll_offset + available_width,
             chars.len()
         );
         
-        let visible_text: String = if input_copy.scroll_offset < chars.len() {
-            chars[input_copy.scroll_offset..end_pos].iter().collect()
+        let visible_text: String = if self.scroll_offset < chars.len() {
+            chars[self.scroll_offset..end_pos].iter().collect()
         } else {
             String::new()
         };
         
         // Prepare the display text
-        let display_text = if input_copy.value.is_empty() && !input_copy.placeholder.is_empty() {
-            input_copy.placeholder.as_str()
+        let display_text = if self.value.is_empty() && !self.placeholder.is_empty() {
+            self.placeholder.as_str()
         } else {
             &visible_text
         };
         
-        let text_style = if input_copy.value.is_empty() && !input_copy.placeholder.is_empty() {
+        let text_style = if self.value.is_empty() && !self.placeholder.is_empty() {
             theme.secondary_text()
         } else {
-            Style::default().fg(Color::White)
+            theme.primary_text()
         };
         
         // Add cursor if focused
-        let line = if input_copy.focused && !input_copy.value.is_empty() {
-            let cursor_visible = input_copy.cursor_blink.sin() > 0.0;
-            let white_style = Style::default().fg(Color::White);
+        let line = if self.focused {
+            let cursor_visible = self.cursor_blink.sin() > 0.0;
+            // Use a bright white color for maximum visibility
+            let focused_text_style = Style::default().fg(Color::White);
             
-            // Calculate cursor position relative to visible text
-            let visible_cursor_pos = input_copy.cursor_position.saturating_sub(input_copy.scroll_offset);
-            
-            if visible_cursor_pos >= visible_text.chars().count() {
-                // Cursor at end of visible text
+            if self.value.is_empty() {
+                // Empty input - show cursor with placeholder
                 if cursor_visible {
-                    Line::from(vec![
-                        Span::styled(&visible_text, white_style),
-                        Span::styled("█", Style::default().fg(Color::Cyan)),
-                    ])
+                    if !self.placeholder.is_empty() {
+                        Line::from(vec![
+                            Span::styled("█", Style::default().fg(Color::Cyan)),
+                            Span::styled(&self.placeholder, theme.secondary_text()),
+                        ])
+                    } else {
+                        Line::from(Span::styled("█", Style::default().fg(Color::Cyan)))
+                    }
                 } else {
-                    Line::from(Span::styled(&visible_text, white_style))
+                    // Cursor not visible - show just placeholder or empty
+                    if !self.placeholder.is_empty() {
+                        Line::from(Span::styled(&self.placeholder, theme.secondary_text()))
+                    } else {
+                        Line::from(Span::styled(" ", focused_text_style)) // Empty space to maintain height
+                    }
                 }
             } else {
-                // Cursor in middle of visible text
-                let visible_chars: Vec<char> = visible_text.chars().collect();
-                let before: String = visible_chars[..visible_cursor_pos].iter().collect();
-                let after: String = visible_chars[visible_cursor_pos..].iter().collect();
+                // Input has text - show text with cursor
+                let visible_cursor_pos = self.cursor_position.saturating_sub(self.scroll_offset);
                 
-                if cursor_visible {
-                    Line::from(vec![
-                        Span::styled(before, white_style),
-                        Span::styled("|", Style::default().fg(Color::Cyan)),
-                        Span::styled(after, white_style),
-                    ])
+                // Debug: Make sure we're actually showing the text
+                if visible_text.is_empty() && !self.value.is_empty() {
+                    // If value has text but visible_text is empty, something's wrong
+                    Line::from(Span::styled(&self.value, focused_text_style))
+                } else if visible_cursor_pos >= visible_text.chars().count() {
+                    // Cursor at end of visible text
+                    if cursor_visible {
+                        Line::from(vec![
+                            Span::styled(&visible_text, focused_text_style),
+                            Span::styled("█", Style::default().fg(Color::Cyan)),
+                        ])
+                    } else {
+                        Line::from(Span::styled(&visible_text, focused_text_style))
+                    }
                 } else {
-                    Line::from(Span::styled(&visible_text, white_style))
+                    // Cursor in middle of visible text
+                    let visible_chars: Vec<char> = visible_text.chars().collect();
+                    let before: String = visible_chars[..visible_cursor_pos].iter().collect();
+                    let after: String = visible_chars[visible_cursor_pos..].iter().collect();
+                    
+                    if cursor_visible {
+                        Line::from(vec![
+                            Span::styled(before, focused_text_style),
+                            Span::styled("|", Style::default().fg(Color::Cyan)),
+                            Span::styled(after, focused_text_style),
+                        ])
+                    } else {
+                        Line::from(Span::styled(&visible_text, focused_text_style))
+                    }
                 }
-            }
-        } else if input_copy.focused && input_copy.value.is_empty() {
-            // Show cursor for empty focused input
-            let cursor_visible = input_copy.cursor_blink.sin() > 0.0;
-            if cursor_visible {
-                Line::from(vec![
-                    Span::styled(&input_copy.placeholder, theme.secondary_text()),
-                    Span::styled("█", Style::default().fg(Color::Cyan)),
-                ])
-            } else {
-                Line::from(Span::styled(&input_copy.placeholder, theme.secondary_text()))
             }
         } else {
+            // Not focused - show text or placeholder without cursor
             Line::from(Span::styled(display_text, text_style))
         };
         

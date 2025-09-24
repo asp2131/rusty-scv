@@ -1,9 +1,9 @@
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame, 
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
 };
@@ -15,7 +15,6 @@ use std::{
 
 use crate::{
     app::{AppEvent, AppState},
-    data::Class,
     ui::{
         animations::AnimationState,
         components::input::AnimatedInput,
@@ -32,8 +31,11 @@ pub struct CreateClassScreen {
 
 impl CreateClassScreen {
     pub fn new() -> Self {
+        let mut input = AnimatedInput::new("Class Name");
+        input.set_placeholder("Enter class name...");
+        input.focus();
         Self {
-            input: AnimatedInput::new("Class Name"),
+            input,
             error: None,
             creating: false,
         }
@@ -102,7 +104,7 @@ impl Screen for CreateClassScreen {
         theme: &Theme,
     ) {
         // Create a centered area for the content
-        let popup_area = crate::ui::layout::center_rect(60, 30, area);
+        let popup_area = crate::ui::layout::center_rect(60, 50, area);
         
         // Clear the area first
         frame.render_widget(Clear, popup_area);
@@ -125,8 +127,8 @@ impl Screen for CreateClassScreen {
             .constraints([
                 Constraint::Length(2), // Title
                 Constraint::Length(3), // Input field
-                Constraint::Length(2), // Error message
-                Constraint::Min(1),    // Spacing
+                Constraint::Length(3), // Error message
+                Constraint::Min(2),    // Spacing
                 Constraint::Length(2), // Help text
             ])
             .split(inner_area);
@@ -138,7 +140,7 @@ impl Screen for CreateClassScreen {
         frame.render_widget(title, chunks[0]);
         
         // Render the input component
-        frame.render_widget(&self.input, chunks[1]);
+        frame.render_widget(&mut self.input, chunks[1]);
         
         // Render error message if any
         if let Some(error) = &self.error {

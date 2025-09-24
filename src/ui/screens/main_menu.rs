@@ -7,7 +7,7 @@ use crate::{
     app::{AppEvent, AppState},
     ui::{
         animations::AnimationState,
-        components::menu::{AnimatedMenu, MenuBuilder, MenuItem, MenuPresets},
+        components::menu::{AnimatedMenu, MenuPresets},
         screens::{Screen, ScreenType, ScreenTypeVariant},
         themes::Theme,
     },

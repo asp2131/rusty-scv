@@ -1,5 +1,5 @@
 use std::time::Duration;
-use ratatui::style::{Color, Style};
+use ratatui::style::Color;
 
 /// Easing functions for smooth animations
 #[derive(Debug, Clone, Copy)]
