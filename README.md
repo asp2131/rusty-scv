@@ -18,7 +18,7 @@ A terminal-based application for managing student repositories and tracking GitH
 
 ```bash
 # Download the beta release
-curl -L https://github.com/asp2131/rusty-scv/releases/download/beta/scv -o scv
+curl -L https://github.com/asp2131/rusty-scv/releases/download/lts/scv -o scv
 
 # Make it executable
 chmod +x scv
