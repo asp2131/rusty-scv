@@ -16,8 +16,10 @@ A terminal-based application for managing student repositories and tracking GitH
 
 ### Option 1: Download the pre-built binary
 
+**Note**: The pre-built binary may not work in GitHub Codespaces due to architecture differences. If you get an "Exec format error", please use Option 2 (Build from source) instead.
+
 ```bash
-# Download the beta release
+# Download the release
 curl -L https://github.com/asp2131/rusty-scv/releases/download/1.0.1/scv -o scv
 
 # Make it executable
@@ -33,7 +35,7 @@ mv scv ~/.local/bin/
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Option 2: Build from source
+### Option 2: Build from source (Recommended for GitHub Codespaces)
 
 #### Prerequisites
 
@@ -48,7 +50,15 @@ cd rusty-scv
 # Build the application
 cargo build --release
 
-# The binary will be available at target/release/scv
+# Copy to local bin directory
+mkdir -p ~/.local/bin
+cp target/release/scv ~/.local/bin/
+
+# Add to PATH (add this to your ~/.bashrc for persistence)
+export PATH="$HOME/.local/bin:$PATH"
+
+# Run the application
+scv
 ```
 
 ## Development
