@@ -18,13 +18,19 @@ A terminal-based application for managing student repositories and tracking GitH
 
 ```bash
 # Download the beta release
-curl -L https://github.com/asp2131/rusty-scv/releases/download/lts/scv -o scv
+curl -L https://github.com/asp2131/rusty-scv/releases/download/1.0.1/scv -o scv
 
 # Make it executable
 chmod +x scv
 
 # Move to a directory in your PATH (optional)
+# For local systems:
 sudo mv scv /usr/local/bin/
+
+# For GitHub Codespaces (if sudo doesn't work):
+mkdir -p ~/.local/bin
+mv scv ~/.local/bin/
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### Option 2: Build from source
